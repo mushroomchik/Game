@@ -100,6 +100,27 @@ class Enemy:
         self.dead = False
         self.load_image()
 
+    def get_info_text(self):
+        """Возвращает строку с информацией о враге"""
+        type_icons = {"normal": "⚔️", "fire": "🔥", "water": "💧", "electric": "⚡"}
+        type_names = {"normal": "Обычный", "fire": "Огонь", "water": "Вода", "electric": "Электричество"}
+
+        info = [
+            f"👹 {self.name}",
+            f"❤️ HP: {self.hp}/{self.max_hp}",
+            f"⚔️ Урон: {self.damage_range[0]}-{self.damage_range[1]}",
+            f"🔮 Тип: {type_icons.get(self.damage_type, '⚔️')} {type_names.get(self.damage_type, 'Обычный')}",
+        ]
+
+        if self.enemy_type == "spirit":
+            info.append("👻 ДУХ: Иммунитет к обычным атакам!")
+            info.append("💥 Слаб к элементальным атакам!")
+        elif self.enemy_type == "elemental":
+            info.append("🔥 ЭЛЕМЕНТАЛЬ: Иммунитет к стихиям!")
+            info.append("⚔️ Слаб к обычным атакам!")
+
+        return info
+
     def load_image(self):
         if self.image_path and os.path.exists(self.image_path):
             try:

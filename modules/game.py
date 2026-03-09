@@ -67,7 +67,12 @@ class Game:
         self.heal_flash_timer = 0
         self.hero_damage_flash_timer = 0
         self.enemy_damage_flash_timer = 0
-        self.upgrade_flash_timer = 0  # ✅ ДОБАВЛЕНО
+        self.upgrade_flash_timer = 0
+
+        # Информация о враге
+        self.enemy_info_visible = False
+        self.enemy_info_timer = 0
+        self.enemy_info_pos = (0, 0)
 
         # UI
         self.setup_ui()
@@ -84,6 +89,10 @@ class Game:
         self.end_turn_btn = Button(UI_POSITIONS['end_turn_btn'][0], UI_POSITIONS['end_turn_btn'][1],
                                    UI_POSITIONS['end_turn_btn'][2], UI_POSITIONS['end_turn_btn'][3],
                                    "Завершить ход", BLUE)
+
+        # DEBUG: Кнопка убийства врага (для разработчика)
+        self.debug_kill_btn = Button(1050, 350, 140, 50, "🗡️ УБИТЬ", RED)
+        self.debug_kill_btn.enabled = False
 
         self.shop_buttons = {
             'next_floor': Button(500, 720, 200, 50, "Следующий бой", GREEN),
@@ -138,11 +147,11 @@ class Game:
     def get_stage_name(self, floor):
         """Получить название этапа по номеру этажа"""
         if floor <= 5:
-            return "Лес"
+            return "🌲 Лес"
         elif floor <= 10:
-            return "Озеро"
+            return "🌊 Озеро"
         else:
-            return "Пещера"
+            return "🔥 Пещера"
 
     def generate_reward_cards(self):
         """Генерация карт награды"""
@@ -257,6 +266,36 @@ class Game:
         else:
             stage = 3  # Пещера
 
+        # Этап 1: ЛЕС (нормальные + трава)
+        if stage == 1:
+            normal_enemies = [
+                (1, "Слайм", 25, (2, 4), "assets/slime.png", None, "slime", "normal", "grass"),
+                (2, "Гоблин", 30, (3, 5), "assets/goblin.png", None, "goblin", "normal", "normal"),
+                (3, "Волк", 35, (4, 6), "assets/wolf.png", None, "wolf", "normal", "normal"),
+                (4, "Энт", 45, (5, 8), "assets/treant.png", None, "treant", "normal", "grass"),
+                (5, "Лесной дух", 40, (4, 7), "assets/forest_spirit.png", None, "spirit", "spirit", "grass"),
+            ]
+
+        # Этап 2: ОЗЕРО (вода)
+        elif stage == 2:
+            normal_enemies = [
+                (6, "Водяной слайм", 55, (5, 8), "assets/water_slime.png", None, "slime", "normal", "water"),
+                (7, "Рыбочеловек", 60, (6, 9), "assets/fish_man.png", None, "fishman", "normal", "water"),
+                (8, "Черепаха", 70, (5, 7), "assets/turtle.png", "block", "turtle", "normal", "water"),
+                (9, "Водяной дух", 65, (6, 10), "assets/water_spirit.png", None, "spirit", "spirit", "water"),
+                (10, "Нага", 75, (7, 11), "assets/naga.png", None, "naga", "normal", "water"),
+            ]
+
+        # Этап 3: ПЕЩЕРА (огонь + земля)
+        else:
+            normal_enemies = [
+                (11, "Огненный слайм", 85, (7, 10), "assets/fire_slime.png", "fire", "slime", "normal", "fire"),
+                (12, "Лавовый голем", 110, (8, 12), "assets/lava_golem.png", "fire", "golem", "elemental", "fire"),
+                (13, "Огненный дух", 95, (8, 11), "assets/fire_spirit.png", "fire", "spirit", "spirit", "fire"),
+                (14, "Каменный голем", 120, (9, 13), "assets/stone_golem.png", None, "golem", "elemental", "ground"),
+                (15, "Огненный дракон", 130, (10, 15), "assets/fire_dragon.png", "fire", "dragon", "elemental", "fire"),
+            ]
+
         if is_boss:
             boss_enemies = [
                 # БОСС ЭТАПА 1 (Лес) - этаж 5
@@ -320,9 +359,9 @@ class Game:
         stage_name = self.get_stage_name(self.floor)
         is_boss = self.is_boss_floor()
         if is_boss:
-            self.message = f"🏔️ {stage_name}, Этаж {self.floor}: БОСС - {self.current_enemy.name}!"
+            self.message = f"{stage_name}, Этаж {self.floor}: 🏆 БОСС - {self.current_enemy.name}!"
         else:
-            self.message = f"🌲 {stage_name}, Этаж {self.floor}: {self.current_enemy.name}!"
+            self.message = f"{stage_name}, Этаж {self.floor}: {self.current_enemy.name}!"
         self.message_timer = 180
 
     def start_new_game(self):
@@ -339,7 +378,9 @@ class Game:
         self.heal_flash_timer = 0
         self.hero_damage_flash_timer = 0
         self.enemy_damage_flash_timer = 0
-        self.upgrade_flash_timer = 0  # ✅ ДОБАВЛЕНО
+        self.upgrade_flash_timer = 0
+        self.enemy_info_visible = False
+        self.enemy_info_timer = 0
         self.create_starting_inventory()
         self.reset_floor()
         self.game_state = "PLAY"
@@ -663,6 +704,7 @@ class Game:
             "3. После победы: +5 HP или новая карта",
             "4. В магазине: купите, продайте или улучшите карты",
             "5. Используйте стихии против врагов!",
+            "6. Клик по врагу = информация о нём",
         ]
         for i, line in enumerate(instructions):
             text = FONTS['small'].render(line, True, LIGHT_GRAY)
@@ -731,6 +773,13 @@ class Game:
 
         self.end_turn_btn.draw(self.screen)
 
+        # DEBUG: Кнопка убийства врага
+        if self.phase == "BATTLE" and self.turn == "PLAYER":
+            self.debug_kill_btn.enabled = True
+            self.debug_kill_btn.draw(self.screen)
+        else:
+            self.debug_kill_btn.enabled = False
+
         turn_text = FONTS['medium'].render(f"{'ВАШ ХОД' if self.turn == 'PLAYER' else 'ХОД ВРАГА'}",
                                            True, YELLOW if self.turn == "PLAYER" else RED)
         self.screen.blit(turn_text, (UI_POSITIONS['turn_text'][0], UI_POSITIONS['turn_text'][1]))
@@ -745,6 +794,48 @@ class Game:
 
             self.enemy_health.draw(self.screen)
             self.current_enemy.draw(self.screen, UI_POSITIONS['enemy_icon'][0], UI_POSITIONS['enemy_icon'][1])
+
+            # Информация о враге при клике
+            if self.enemy_info_visible and self.enemy_info_timer > 0:
+                self.draw_enemy_info()
+
+    def draw_enemy_info(self):
+        """Отрисовка информации о враге"""
+        if not self.current_enemy:
+            return
+
+        info_lines = self.current_enemy.get_info_text()
+
+        # Рассчитываем размер окна
+        max_width = 0
+        for line in info_lines:
+            text_width = FONTS['tiny'].render(line, True, WHITE).get_width()
+            if text_width > max_width:
+                max_width = text_width
+
+        box_width = max_width + 20
+        box_height = len(info_lines) * 18 + 10
+
+        # Позиция (чтобы не выходило за экран)
+        info_x = min(self.enemy_info_pos[0], SCREEN_WIDTH - box_width - 10)
+        info_y = min(self.enemy_info_pos[1], SCREEN_HEIGHT - box_height - 10)
+
+        # Фон окна
+        pygame.draw.rect(self.screen, DARK_BLUE, (info_x, info_y, box_width, box_height), border_radius=8)
+        pygame.draw.rect(self.screen, GOLD, (info_x, info_y, box_width, box_height), 2, border_radius=8)
+
+        # Текст
+        for i, line in enumerate(info_lines):
+            # Цвет для важных строк
+            if "Иммунитет" in line or "Слаб" in line or "x2" in line or "x0" in line:
+                color = GOLD
+            elif "Тип:" in line or "HP:" in line or "Урон:" in line:
+                color = CYAN
+            else:
+                color = WHITE
+
+            text_surf = FONTS['tiny'].render(line, True, color)
+            self.screen.blit(text_surf, (info_x + 10, info_y + 5 + i * 18))
 
     def draw_reward_screen(self):
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -811,6 +902,14 @@ class Game:
                 pygame.draw.rect(self.screen, BLUE, (card.x - 3, card.y - 3,
                                                      card.width + 6, card.height + 6), 3, border_radius=12)
 
+        # Визуальный эффект успешного апгрейда
+        if hasattr(self, 'upgrade_flash_timer') and self.upgrade_flash_timer > 0:
+            pygame.draw.rect(self.screen, GOLD,
+                             (150 - 5, 460 - 5,
+                              6 * 155 + 10,
+                              max(200, (len(self.inventory) // 6 + 1) * 200 + 10)),
+                             4, border_radius=15)
+
         if self.selected_upgrade_card is not None:
             card = self.inventory[self.selected_upgrade_card]
             upgrade_cost = UPGRADE_COSTS.get(card.tier, 999)
@@ -834,16 +933,6 @@ class Game:
         if self.selected_upgrade_card is not None:
             self.shop_buttons['upgrade'].draw(self.screen)
             self.shop_buttons['cancel'].draw(self.screen)
-
-        # После отрисовки инвентаря
-        if self.upgrade_flash_timer > 0:
-            # Золотое свечение вокруг всей зоны инвентаря
-            pygame.draw.rect(self.screen, GOLD,
-                             (150 - 5, 460 - 5,
-                              6 * 155 + 10,
-                              (len(self.inventory) // 6 + 1) * 200 + 10),
-                             4, border_radius=15)
-            self.upgrade_flash_timer -= 1
 
     def draw_game_over(self):
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -925,6 +1014,33 @@ class Game:
                         if self.turn == "PLAYER":
                             if self.current_enemy and self.current_enemy.dead:
                                 continue
+
+                            # ✅ DEBUG: Кнопка убийства врага
+                            if self.debug_kill_btn.is_clicked(pos) and self.debug_kill_btn.enabled:
+                                self.current_enemy.hp = 0
+                                self.current_enemy.dead = True
+                                self.enemy_health.update(0, 0)
+                                self.message = "🧪 DEBUG: Враг убит!"
+                                self.message_timer = 60
+                                self.enemy_defeated()
+                                continue
+
+                            # ✅ Клик по врагу → показать информацию
+                            if self.current_enemy and not self.current_enemy.dead:
+                                enemy_rect = pygame.Rect(
+                                    UI_POSITIONS['enemy_icon'][0],
+                                    UI_POSITIONS['enemy_icon'][1],
+                                    120, 120
+                                )
+                                if enemy_rect.collidepoint(pos):
+                                    self.enemy_info_visible = True
+                                    self.enemy_info_timer = 300  # 5 секунд
+                                    self.enemy_info_pos = (
+                                        UI_POSITIONS['enemy_icon'][0] + 130,
+                                        UI_POSITIONS['enemy_icon'][1]
+                                    )
+                                    continue
+
                             dice_clicked = False
                             for dice in self.dice_list:
                                 if dice.is_clicked(pos) and not dice.used:
@@ -962,6 +1078,7 @@ class Game:
         elif self.game_state == "PLAY":
             if self.phase == "BATTLE":
                 self.end_turn_btn.check_hover(pygame.mouse.get_pos())
+                self.debug_kill_btn.check_hover(pygame.mouse.get_pos())
             elif self.phase == "SHOP":
                 for btn in self.shop_buttons.values():
                     btn.check_hover(pygame.mouse.get_pos())
@@ -982,8 +1099,12 @@ class Game:
             self.hero_damage_flash_timer -= 1
         if self.enemy_damage_flash_timer > 0:
             self.enemy_damage_flash_timer -= 1
-        if self.upgrade_flash_timer > 0:  # ✅ ДОБАВЛЕНО
+        if self.upgrade_flash_timer > 0:
             self.upgrade_flash_timer -= 1
+        if self.enemy_info_timer > 0:
+            self.enemy_info_timer -= 1
+            if self.enemy_info_timer <= 0:
+                self.enemy_info_visible = False
 
     def draw(self):
         if self.game_state == "MENU":
