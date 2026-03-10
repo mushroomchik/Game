@@ -158,3 +158,17 @@ class IconRenderer:
         font = pygame.font.Font(None, size)
         g_text = font.render("G", True, BLACK)
         screen.blit(g_text, (center_x - g_text.get_width() // 2, center_y - g_text.get_height() // 2))
+
+    def draw_type_icon(screen, damage_type, x, y, size=16):
+        """Отрисовка маленькой иконки типа урона"""
+        icon_map = {
+            "normal": "sword",
+            "fire": "fire",
+            "water": "shield",
+            "electric": "crit",
+            "grass": "heart",
+            "ground": "shield"
+        }
+
+        icon_type = icon_map.get(damage_type, "sword")
+        IconRenderer.draw_icon(screen, icon_type, x, y, size)

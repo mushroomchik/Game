@@ -39,19 +39,16 @@ UI_POSITIONS = {
     'end_turn_btn': (920, 350, 180, 50),
     'turn_text': (920, 310),
 }
-# Для отображения информации о враге
-TYPE_NAMES = {
-    "normal": "Обычный",
-    "fire": "Огонь",
-    "water": "Вода",
-    "electric": "Электричество"
-}
+# Иконки типов урона (используют IconRenderer)
 TYPE_ICONS = {
-    "normal": "⚔️",
-    "fire": "🔥",
-    "water": "💧",
-    "electric": "⚡"
+    "normal": "sword",      # Меч для физических атак
+    "fire": "fire",         # Огонь
+    "water": "shield",      # Щит для воды (ледяной)
+    "electric": "crit",     # Звезда для электричества
+    "grass": "heart",       # Сердце для травы (природа)
+    "ground": "shield"      # Щит для земли (защита)
 }
+
 # --- Настройки игры ---
 PLAYER_MAX_HP = 25  # Было 20
 DICE_COUNT = 3      # Было 2
@@ -102,7 +99,7 @@ TIER_1_CARDS = [
 
     # 💧 ВОДА (голубой)
     ("Водяной поток", "Нечётные. Блок +5", "odd", 2, "block", 5, "auto", "shield", 25, 1, "water"),
-    ("Ледяной шип", "Чётные. +3 урона + блок", "even", 2, "special", 3, "auto", "shield", 25, 1, "water"),
+    ("Ледяной шип", "Чётные. +3 урона + блок 3", "even", 2, "special", 3, "auto", "shield", 25, 1, "water"),
 
     # ⚡ ЭЛЕКТРИЧЕСТВО (жёлтый)
     ("Молния", "Чётные. +6 урона", "even", 1, "damage", 6, "auto", "crit", 30, 1, "electric"),
@@ -127,6 +124,7 @@ TIER_2_CARDS = [
     # 💧 ВОДА
     ("Цунами", "Любой. +10 урона", "any", 2, "damage", 10, "auto", "shield", 40, 2, "water"),
     ("Ледяная буря", "Чётные. +7 урона + блок 5", "even", 2, "special", 7, "auto", "shield", 45, 2, "water"),
+
 
     # ⚡ ЭЛЕКТРИЧЕСТВО
     ("Грозовой разряд", "6. +15 урона", [6], 1, "damage", 15, "auto", "crit", 50, 2, "electric"),
@@ -163,9 +161,10 @@ TIER_3_CARDS = [
 
     # 💧 ВОДА
     ("Водяной поток+", "Нечётные. Блок +10", "odd", 2, "block", 10, "auto", "shield", 35, 3, "water"),
-    ("Ледяной шип+", "Чётные. +6 урона + блок", "even", 2, "special", 6, "auto", "shield", 35, 3, "water"),
+    ("Ледяной шип+", "Чётные. +6 урона + блок 6", "even", 2, "special", 6, "auto", "shield", 35, 3, "water"),
+    ("Ледяная буря+", "Чётные. +12 урона + блок 8", "even", 2, "special", 12, "auto", "shield", 55, 3, "water"),
     ("Цунами+", "Любой. +18 урона", "any", 2, "damage", 18, "auto", "shield", 50, 3, "water"),
-    ("Ледяная буря+", "Чётные. +12 урона + блок", "even", 2, "special", 12, "auto", "shield", 55, 3, "water"),
+
 
     # ⚡ ЭЛЕКТРИЧЕСТВО
     ("Молния+", "Чётные. +10 урона", "even", 1, "damage", 10, "auto", "crit", 40, 3, "electric"),
@@ -290,57 +289,7 @@ DAMAGE_TYPES = ["normal", "fire", "water", "electric"]
 # Эффективность типов: атакующий тип -> защищающийся тип -> множитель
 # === ЭФФЕКТИВНОСТЬ СТИХИЙ (как на изображении) ===
 # Water → Fire → Grass → Ground → Electric → Water
-TYPE_EFFECTIVENESS = {
-    # Атакующий элемент -> Защищающийся элемент -> множитель
-    "normal": {
-        "normal": 1.0,
-        "fire": 1.0,
-        "water": 1.0,
-        "electric": 1.0,
-        "grass": 1.0,
-        "ground": 1.0,
-    },
-    "fire": {
-        "normal": 1.0,
-        "fire": 0.5,        # Огонь против огня
-        "water": 0.25,      # 💧 Вода тушит огонь!
-        "grass": 2.0,       # 🔥 Огонь жжёт траву!
-        "ground": 1.0,
-        "electric": 1.0,
-    },
-    "water": {
-        "normal": 1.0,
-        "fire": 2.0,        # 💧 Вода тушит огонь!
-        "water": 0.5,
-        "grass": 0.5,       # 💧 Вода питает траву (слабо)
-        "ground": 2.0,      # 💧 Вода размывает землю!
-        "electric": 0.25,   # ⚡ Вода проводит электричество!
-    },
-    "electric": {
-        "normal": 1.0,
-        "fire": 1.0,
-        "water": 2.0,       # ⚡ Электричество по воде!
-        "grass": 1.0,
-        "ground": 0.0,      # 🪨 Земля блокирует электричество!
-        "electric": 0.5,
-    },
-    "grass": {
-        "normal": 1.0,
-        "fire": 0.25,       # 🔥 Трава горит!
-        "water": 2.0,       # 🌱 Трава впитывает воду!
-        "grass": 0.5,
-        "ground": 2.0,      # 🌱 Корни разрушают землю!
-        "electric": 1.0,
-    },
-    "ground": {
-        "normal": 1.0,
-        "fire": 2.0,        # 🪨 Земля тушит огонь!
-        "water": 0.5,       # 💧 Земля впитывает воду
-        "grass": 0.5,       # 🌱 Земля питает траву
-        "ground": 0.5,
-        "electric": 2.0,    # 🪨 Земля поглощает электричество!
-    },
-}
+
 
 # --- Новые этапы (регионы) ---
 STAGES = {
@@ -357,20 +306,74 @@ ICON_SIZE = 35
 
 # === ЦВЕТА СТИХИЙ И ТИПОВ ===
 ELEMENT_COLORS = {
-    "normal": PURPLE,        # Физические атаки - фиолетовый
-    "fire": (255, 100, 50),  # Огонь - оранжево-красный
-    "water": (50, 150, 255), # Вода - голубой
-    "electric": (255, 220, 50), # Электричество - жёлтый
-    "grass": (100, 220, 100),   # Трава - светло-зелёный
-    "ground": (180, 120, 60),   # Земля - коричневый
+    "normal": PURPLE,
+    "fire": (255, 100, 50),
+    "water": (50, 150, 255),
+    "electric": (255, 220, 50),
+    "grass": (100, 220, 100),
+    "ground": (180, 120, 60),
 }
 
-# Цвета по типу эффекта (для не-элементальных карт)
 EFFECT_COLORS = {
-    "damage": PURPLE,           # Физический урон - фиолетовый
-    "heal": (100, 220, 100),    # Лечение - светло-зелёный
-    "block": (50, 150, 255),    # Блок - голубой
-    "vampirism": (180, 50, 180), # Вампиризм - тёмно-фиолетовый
-    "omnipotent": GOLD,          # Всемогущий - золотой
-    "special": CYAN,             # Особый - бирюзовый
+    "damage": PURPLE,
+    "heal": (100, 220, 100),
+    "block": (50, 150, 255),
+    "vampirism": (180, 50, 180),
+    "omnipotent": GOLD,
+    "special": CYAN,
 }
+
+# === ЭФФЕКТИВНОСТЬ СТИХИЙ ===
+TYPE_EFFECTIVENESS = {
+    "normal": {
+        "normal": 1.0, "fire": 1.0, "water": 1.0,
+        "electric": 1.0, "grass": 1.0, "ground": 1.0,
+    },
+    "fire": {
+        "normal": 1.0, "fire": 0.5, "water": 0.25,
+        "grass": 2.0, "ground": 1.0, "electric": 1.0,
+    },
+    "water": {
+        "normal": 1.0, "fire": 2.0, "water": 0.5,
+        "grass": 0.5, "ground": 2.0, "electric": 0.25,
+    },
+    "electric": {
+        "normal": 1.0, "fire": 1.0, "water": 2.0,
+        "grass": 1.0, "ground": 0.0, "electric": 0.5,
+    },
+    "grass": {
+        "normal": 1.0, "fire": 0.25, "water": 2.0,
+        "grass": 0.5, "ground": 2.0, "electric": 1.0,
+    },
+    "ground": {
+        "normal": 1.0, "fire": 2.0, "water": 0.5,
+        "grass": 0.5, "ground": 0.5, "electric": 2.0,
+    },
+}
+# === НАЗВАНИЯ ТИПОВ ===
+TYPE_NAMES = {
+    "normal": "", "fire": "[Огонь] ", "water": "[Вода] ",
+    "electric": "[Молния] ", "grass": "[Природа] ", "ground": "[Земля] "
+}
+# === БРОНЯ И ИНВЕНТАРЬ ===
+ARMOR_TIERS = {
+    0: {"name": "Старая одежда", "defense": 0, "type": "normal", "asset": "armor_metal_0.png"},
+    1: {"name": "Железная броня", "defense": 2, "type": "metal", "asset": "armor_metal_1.png"},
+    2: {"name": "Элементальная броня", "defense": 1, "type": "elemental", "asset": "armor_elemental_2.png"},
+    3: {"name": "Усиленная броня", "defense": 4, "type": "metal", "asset": "armor_metal_3.png"},
+    4: {"name": "Легендарная броня", "defense": 5, "type": "legendary", "asset": "armor_legendary_4.png"},
+}
+
+# Типы локаций на карте
+MAP_NODE_TYPES = ["enemy", "shop", "treasure", "campfire", "boss"]
+
+# Настройки карты
+MAP_ROWS = 3
+MAP_COLS = 5
+NODE_SPACING_X = 200
+NODE_SPACING_Y = 150
+MAP_START_X = 100
+MAP_START_Y = 200
+
+# Названия ассетов для иконок
+ICON_INVENTORY = "icon_inventory.png"

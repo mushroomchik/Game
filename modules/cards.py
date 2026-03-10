@@ -20,9 +20,8 @@ class AbilityCard:
         self.tier = tier
         self.damage_type = damage_type
 
-        # === АВТОМАТИЧЕСКИЙ ВЫБОР ЦВЕТА ===
+        # АВТОМАТИЧЕСКИЙ ВЫБОР ЦВЕТА
         if color == "auto":
-            # Определяем цвет по типу эффекта или стихии
             if effect_type == "heal":
                 self.color = EFFECT_COLORS["heal"]
             elif effect_type == "block":
@@ -32,17 +31,17 @@ class AbilityCard:
             elif effect_type in EFFECT_COLORS:
                 self.color = EFFECT_COLORS[effect_type]
             else:
-                self.color = PURPLE  # По умолчанию
+                self.color = PURPLE
         else:
             self.color = color
 
-        # === ПОЗИЦИЯ И РАЗМЕРЫ ===
+        # ПОЗИЦИЯ И РАЗМЕРЫ
         self.x = 0
         self.y = 0
-        self.width = CARD_WIDTH  # ✅ ДОБАВЛЕНО
-        self.height = CARD_HEIGHT  # ✅ ДОБАВЛЕНО
+        self.width = CARD_WIDTH
+        self.height = CARD_HEIGHT
 
-        # === СОСТОЯНИЕ ===
+        # СОСТОЯНИЕ
         self.hovered = False
         self.assigned_dice = []
         self.used_this_turn = False
@@ -215,12 +214,25 @@ class AbilityCard:
 
     def _draw_tooltip(self, screen):
         """Всплывающая подсказка с полным описанием карты"""
+        # Названия типов урона (без эмодзи)
+        type_names = {
+            "normal": "Физический",
+            "fire": "Огонь",
+            "water": "Вода",
+            "electric": "Электричество",
+            "grass": "Природа",
+            "ground": "Земля"
+        }
+
+        damage_type = getattr(self, 'damage_type', 'normal')
+        type_name = type_names.get(damage_type, "Физический")
+
         tooltip_lines = [
-            f"📛 {self.name}",
-            f"🎲 Стоимость: {self.dice_cost} куб.",
-            f"📋 Требование: {self.get_requirement_text()}",
+            f"{self.name}",
+            f"Стоимость: {self.dice_cost} куб.",
+            f"Требование: {self.get_requirement_text()}",
             "",
-            "📖 Полное описание:",
+            "Полное описание:",
         ]
 
         # Разбиваем полное описание на строки
@@ -229,11 +241,8 @@ class AbilityCard:
             tooltip_lines.append(f"   {line}")
 
         tooltip_lines.append("")
-        tooltip_lines.append(f"💰 Цена: {self.price}G | 📊 Тир: {self.tier}")
-
-        if hasattr(self, 'damage_type'):
-            type_icons = {"normal": "⚔️", "fire": "🔥", "water": "💧", "electric": "⚡"}
-            tooltip_lines.append(f"🔮 Тип урона: {type_icons.get(self.damage_type, '⚔️')} {self.damage_type}")
+        tooltip_lines.append(f"Цена: {self.price}G | Тир: {self.tier}")
+        tooltip_lines.append(f"Тип урона: {type_name}")
 
         # Рассчитываем размер окна подсказки
         max_width = 0
@@ -267,7 +276,7 @@ class AbilityCard:
                 continue
             elif "Полное описание:" in line:
                 color = GOLD
-            elif "📛" in line or "💰" in line or "📊" in line or "🔮" in line:
+            elif "Цена:" in line or "Тир:" in line or "Тип урона:" in line:
                 color = CYAN
             else:
                 color = WHITE
@@ -361,29 +370,48 @@ class AbilityCard:
         return len(self.assigned_dice) >= self.dice_cost and not self.used_this_turn
 
     def calculate_effect(self):
+        """Расчёт эффекта карты с поддержкой комбинированных эффектов"""
         base = self.effect_value
         dice_sum = sum(self.assigned_dice)
 
         if self.effect_type == "damage":
-            return dice_sum + base
+            return {"damage": dice_sum + base}
+
         elif self.effect_type == "heal":
-            return (dice_sum + base) // 2
+            return {"heal": (dice_sum + base) // 2}
+
         elif self.effect_type == "block":
-            return dice_sum
+            return {"block": dice_sum + base}
+
         elif self.effect_type == "vampirism":
-            return {"damage": dice_sum + base, "heal": (dice_sum + base) // 2}
+            damage = dice_sum + base
+            return {"damage": damage, "heal": damage // 2}
+
         elif self.effect_type == "omnipotent":
-            return {"damage": dice_sum + base, "heal": (dice_sum + base) // 3}
+            damage = dice_sum + base
+            return {"damage": damage, "heal": damage // 3}
+
         elif self.effect_type == "special":
-            return {"dice_sum": dice_sum, "dice_count": len(self.assigned_dice)}
-        return base
+            desc_lower = self.description.lower()
+            if "блок" in desc_lower:
+                return {"damage": dice_sum + base, "block": base}
+            elif "лечение" in desc_lower or "hp" in desc_lower:
+                return {"damage": dice_sum + base, "heal": base}
+            else:
+                return {"damage": dice_sum + base}
+
+        return {"damage": base}
 
     def reset(self):
         self.assigned_dice = []
 
     def reset_turn(self):
+        """Сброс карты для нового боя"""
         self.used_this_turn = False
         self.assigned_dice = []
+        self.hovered = False
 
     def mark_used(self):
+        """Пометить карту как использованную"""
+        # ✅ Не помечаем если это не бой
         self.used_this_turn = True

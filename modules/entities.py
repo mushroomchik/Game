@@ -1,7 +1,7 @@
 import pygame
 import random
 import os
-from modules.settings import WHITE, BLACK, GRAY, GOLD, RED, DARK_GRAY, DICE_SIZE, ICON_SIZE
+from modules.settings import *
 from modules.utils import IconRenderer, FONTS
 
 
@@ -102,22 +102,78 @@ class Enemy:
 
     def get_info_text(self):
         """Возвращает строку с информацией о враге"""
-        type_icons = {"normal": "⚔️", "fire": "🔥", "water": "💧", "electric": "⚡"}
-        type_names = {"normal": "Обычный", "fire": "Огонь", "water": "Вода", "electric": "Электричество"}
+        type_names = {
+            "normal": "Физический",
+            "fire": "Огонь",
+            "water": "Вода",
+            "electric": "Электричество",
+            "grass": "Природа",
+            "ground": "Земля"
+        }
+
+        # Получаем тип врага
+        enemy_type = getattr(self, 'damage_type', 'normal')
+        enemy_category = getattr(self, 'enemy_type', 'normal')
 
         info = [
-            f"👹 {self.name}",
-            f"❤️ HP: {self.hp}/{self.max_hp}",
-            f"⚔️ Урон: {self.damage_range[0]}-{self.damage_range[1]}",
-            f"🔮 Тип: {type_icons.get(self.damage_type, '⚔️')} {type_names.get(self.damage_type, 'Обычный')}",
+            f"{self.name}",
+            f"HP: {self.hp}/{self.max_hp}",
+            f"Урон: {self.damage_range[0]}-{self.damage_range[1]}",
+            f"Тип: {type_names.get(enemy_type, 'Физический')}",
         ]
 
-        if self.enemy_type == "spirit":
-            info.append("👻 ДУХ: Иммунитет к обычным атакам!")
-            info.append("💥 Слаб к элементальным атакам!")
-        elif self.enemy_type == "elemental":
-            info.append("🔥 ЭЛЕМЕНТАЛЬ: Иммунитет к стихиям!")
-            info.append("⚔️ Слаб к обычным атакам!")
+        if enemy_category == "spirit":
+            info.append("ДУХ: Иммунитет к обычным атакам!")
+            info.append("Слаб к элементальным атакам!")
+        elif enemy_category == "elemental":
+            info.append("ЭЛЕМЕНТАЛЬ: Иммунитет к стихиям!")
+            info.append("Слаб к обычным атакам!")
+
+        # Показываем эффективность атак
+        info.append("Эффективность атак:")
+
+        all_attack_types = ["normal", "fire", "water", "electric", "grass", "ground"]
+
+        for attack_type in all_attack_types:
+            attack_name = type_names.get(attack_type, attack_type)
+
+            if enemy_category == "spirit":
+                # Духи: иммунитет к normal, x2 ко всем элементам
+                if attack_type == "normal":
+                    info.append(f"  {attack_name}: ИММУНИТЕТ")
+                else:
+                    # Для духов: x2 за то что элементаль + эффективность стихии
+                    element_mult = TYPE_EFFECTIVENESS.get(attack_type, {}).get(enemy_type, 1.0)
+                    total_mult = 2.0 * element_mult  # Spirit даёт x2 ко всем элементам
+
+                    if total_mult == 0:
+                        info.append(f"  {attack_name}: ИММУНИТЕТ")
+                    elif total_mult > 1.0:
+                        info.append(f"  {attack_name}: x{total_mult} (эффективно)")
+                    elif total_mult < 1.0:
+                        info.append(f"  {attack_name}: x{total_mult} (слабо)")
+                    else:
+                        info.append(f"  {attack_name}: обычный урон")
+
+            elif enemy_category == "elemental":
+                # Элементали: иммунитет к элементам, x2 к normal
+                if attack_type == "normal":
+                    info.append(f"  {attack_name}: x2.0 (эффективно)")
+                else:
+                    info.append(f"  {attack_name}: ИММУНИТЕТ")
+
+            else:
+                # Обычные враги
+                multiplier = TYPE_EFFECTIVENESS.get(attack_type, {}).get(enemy_type, 1.0)
+
+                if multiplier == 0:
+                    info.append(f"  {attack_name}: ИММУНИТЕТ")
+                elif multiplier > 1.0:
+                    info.append(f"  {attack_name}: x{multiplier} (эффективно)")
+                elif multiplier < 1.0:
+                    info.append(f"  {attack_name}: x{multiplier} (слабо)")
+                else:
+                    info.append(f"  {attack_name}: обычный урон")
 
         return info
 
@@ -197,3 +253,39 @@ class CharacterIcon:
             pygame.draw.circle(screen, DARK_BLUE, (self.x + self.size // 2, self.y + self.size // 2), self.size // 2)
             pygame.draw.circle(screen, WHITE, (self.x + self.size // 2, self.y + self.size // 2), self.size // 2, 3)
             IconRenderer.draw_icon(screen, self.icon_type, self.x + 25, self.y + 25, 30)
+
+# --- Броня ---
+class Armor:
+    def __init__(self, name, tier, defense, armor_type="normal", asset_path=None, element=None):
+        self.name = name
+        self.tier = tier
+        self.defense = defense  # Снижение урона
+        self.armor_type = armor_type  # normal, metal, elemental, legendary
+        self.element = element  # fire, water, etc. (для элементальной брони)
+        self.asset_path = asset_path
+        self.image = None
+        self.load_image()
+
+    def load_image(self):
+        if self.asset_path and os.path.exists(f"assets/{self.asset_path}"):
+            try:
+                self.image = pygame.image.load(f"assets/{self.asset_path}")
+                self.image = pygame.transform.scale(self.image, (50, 50))
+            except:
+                self.image = None
+
+    def draw(self, screen, x, y):
+        if self.image:
+            screen.blit(self.image, (x, y))
+        else:
+            # Заглушка если нет картинки
+            color = GOLD if self.tier == 4 else BLUE if self.tier >= 2 else GRAY
+            pygame.draw.rect(screen, color, (x, y, 50, 50), border_radius=5)
+            pygame.draw.rect(screen, WHITE, (x, y, 50, 50), 2, border_radius=5)
+            text = FONTS['tiny'].render(f"T{self.tier}", True, WHITE)
+            screen.blit(text, (x + 15, y + 15))
+
+    def get_effect_text(self):
+        if self.armor_type == "elemental" and self.element:
+            return f"Защита: {self.defense} | Отражение: {self.element}"
+        return f"Защита: {self.defense}"
