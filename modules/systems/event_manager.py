@@ -40,7 +40,12 @@ class EventManager:
         items = []
         if random.random() > 0.5:
             tier = random.choice([1, 2])
-            data = ARMOR_TIERS[tier].copy()
+            armor_data = ARMOR_TIERS[tier]
+            # Если это список (для тира 2), выбираем случайную броню
+            if isinstance(armor_data, list):
+                data = random.choice(armor_data).copy()
+            else:
+                data = armor_data.copy()
             data["tier"] = tier
             items.append({"type": "armor", "data": data})
         else:
