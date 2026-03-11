@@ -50,10 +50,11 @@ class Game:
         self.start_btn = Button(UI_POSITIONS['start_btn_center'] - 100, 380, 200, 60, "Начать игру", GREEN)
         self.fight_btn = Button(SCREEN_WIDTH // 2 - 100, 720, 200, 60, "В БОЙ!", RED)
         self.end_turn_btn = Button(*UI_POSITIONS['end_turn_btn'], "Завершить ход", BLUE)
-        self.inventory_btn = Button(1050, 20, 130, 40, "Инвентарь", BLUE)
-        self.player_icon = CharacterIcon(*UI_POSITIONS['hero_icon'], 80, "assets/hero.png", "hero")
+        self.inventory_btn = Button(1000, 10, 180, 60, "Инвентарь", BLUE, icon_image_path="assets/images/icon_inventory.png")
+        self.player_icon = CharacterIcon(*UI_POSITIONS['hero_icon'], 80, "assets/images/hero.png", "hero")
         self.map_btn = Button(1050, 20, 130, 40, "Карта", BLUE)
         self.to_map_btn = Button(SCREEN_WIDTH // 2 - 80, 700, 160, 50, "На карту", BLUE)
+        self.fight_from_map_btn = Button(SCREEN_WIDTH // 2 - 100, 640, 200, 50, "В БОЙ!", RED)
         self.turn = "PLAYER"
         self.enemy_info_visible = False
         self.enemy_info_pos = (0, 0)
@@ -63,6 +64,7 @@ class Game:
         self.armor_tooltip_visible = False
         self.armor_tooltip_pos = (0, 0)
         self.armor_tooltip_armor = None
+        self.player_block = 0  # Блок игрока
         self.inventory_tab = "cards"  # "cards" или "armor"
         self.inventory_scroll = 0  # Позиция скролла
         self.dragging_scroll = False  # Флаг для перетаскивания ползунка
@@ -187,10 +189,9 @@ class Game:
         elif self.game_state == "MAP":
             if self.inventory_btn.is_clicked(pos):
                 self.game_state = "INVENTORY"
-            else:
-                # Один узел - следующий бой
-                if self.map_mgr.node and self.map_mgr.node.rect.collidepoint(pos) and self.map_mgr.node.active:
-                    self._visit_location(self.map_mgr.node.type)
+            elif hasattr(self, 'fight_from_map_btn') and self.fight_from_map_btn.is_clicked(pos):
+                # Клик по кнопке "В бой" - переход к выбору карт
+                self._visit_location(self.map_mgr.node.type)
         elif self.game_state == "PRE_BATTLE":
             if self.fight_btn.is_clicked(pos):
                 # Выбрать только отмеченные карты (до 5)
@@ -477,11 +478,14 @@ class Game:
         battle_mgr = BattleManager({'hp': self.player_hp, 'max_hp': self.player_max_hp, 'block': self.player_block},
                                    self.current_enemy, self.dice_list, self.battle_hand, self.particles)
         messages = battle_mgr.activate_card(card)
+        # Синхронизация HP и блока после применения карты
+        self.player_hp = battle_mgr.player['hp']
+        self.player_block = battle_mgr.player['block']
         # Визуальные эффекты
         for msg in messages:
             if "урона" in msg:
                 self.enemy_damage_flash_timer = 15
-            if "HP" in msg:
+            if "HP" in msg or "блок" in msg:
                 self.heal_flash_timer = 15
         self.message = f"{card.name}: " + " | ".join(messages) if messages else f"{card.name}: применено!"
         self.message_timer = 90
@@ -547,6 +551,9 @@ class Game:
         battle_mgr = BattleManager({'hp': self.player_hp, 'max_hp': self.player_max_hp, 'block': self.player_block},
                                    self.current_enemy, self.dice_list, self.battle_hand, self.particles)
         dmg, special = battle_mgr.enemy_attack(self.inv_mgr.equipped_armor)
+        # Обновляем HP после атаки
+        self.player_hp = battle_mgr.player['hp']
+        self.player_block = battle_mgr.player['block']
         if dmg > 0:
             self.hero_damage_flash_timer = 15
             self.message = f"{dmg} урона! {special}".strip()
@@ -681,20 +688,19 @@ class Game:
             GameRenderer.draw_menu(self.screen, self.start_btn)
 
         elif self.game_state == "MAP":
-            # Передаём список с одним узлом
-            nodes = [self.map_mgr.node] if self.map_mgr.node else []
             # Создаём врага для отображения (только данные, не для боя)
             next_enemy = self._create_enemy(self.floor)
             GameRenderer.draw_map(
                 self.screen,
-                nodes,
+                [],  # Узлы карты больше не рисуются
                 self.floor,
                 self.player_hp,
                 self.player_max_hp,
                 self.gold,
                 self.inventory_btn,
                 self.message,
-                next_enemy
+                next_enemy,
+                self.fight_from_map_btn
             )
 
         elif self.game_state == "INVENTORY":

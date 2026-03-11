@@ -56,13 +56,17 @@ class AbilityCard:
     def draw(self, screen, show_price=False, price_type="sell", player_gold=0, force_available=False, draw_tooltip=True):
         # Фон
         if self.selected_for_battle:
-            color = GREEN
+            color = self.color  # Оригинальный цвет, но с зеленой обводкой
         elif self.used_this_turn and not force_available:
             color = GRAY
         else:
             color = self.color if not self.hovered else tuple(min(255, c + 30) for c in self.color)
             if len(self.assigned_dice) >= self.dice_cost: color = GREEN
         pygame.draw.rect(screen, color, (self.x, self.y, self.width, self.height), border_radius=10)
+
+        # Зеленая обводка при выборе для боя
+        if self.selected_for_battle:
+            pygame.draw.rect(screen, GREEN, (self.x - 2, self.y - 2, self.width + 4, self.height + 4), 3, border_radius=12)
 
         # Рамка тира
         tier_color = self.get_tier_color()

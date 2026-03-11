@@ -3,7 +3,7 @@ import pygame
 from modules.config import WHITE, GOLD, BLACK, GREEN, RED, BLUE, ORANGE, PURPLE, YELLOW, LIGHT_GRAY
 
 VALID_ICONS = {"sword", "fire", "heart", "shield", "crit", "star",
-               "poison", "hero", "slime", "goblin", "skeleton", "ogre", "dragon"}
+               "poison", "hero", "slime", "goblin", "skeleton", "ogre", "dragon", "inventory"}
 
 class IconRenderer:
     @staticmethod
@@ -56,6 +56,11 @@ class IconRenderer:
             pygame.draw.polygon(screen, RED, [(cx,y),(x-5,y+10),(x+5,y+10)])
             pygame.draw.circle(screen, YELLOW, (cx-4, cy-2), 3)
             pygame.draw.circle(screen, YELLOW, (cx+4, cy-2), 3)
+        elif icon_type == "inventory":
+            # Иконка инвентаря (рюкзак)
+            pygame.draw.rect(screen, BLUE, (x + 5, y + 5, size - 10, size - 10), border_radius=3)
+            pygame.draw.line(screen, WHITE, (x + size//2, y + 8), (x + size//2, y + size - 8), 2)
+            pygame.draw.line(screen, WHITE, (x + 8, y + size//2), (x + size - 8, y + size//2), 2)
         # Остальные иконки по аналогии...
 
     @staticmethod

@@ -26,7 +26,11 @@ EFFECT_COLORS = {
 ARMOR_TIERS = {
     0: {"name": "Старая одежда", "defense": 0, "type": "normal", "asset": "armor_metal_0.png"},
     1: {"name": "Железная броня", "defense": 2, "type": "metal", "asset": "armor_metal_1.png"},
-    2: {"name": "Элементальная броня", "defense": 1, "type": "elemental", "asset": "armor_elemental_2.png"},
+    2: [
+        {"name": "Огненная броня", "defense": 1, "type": "elemental", "element": "fire", "asset": "armor_elemental_2_fire.png"},
+        {"name": "Водяная броня", "defense": 1, "type": "elemental", "element": "water", "asset": "armor_elemental_2_water.png"},
+        {"name": "Земляная броня", "defense": 1, "type": "elemental", "element": "ground", "asset": "armor_elemental_2_grass.png"},
+    ],
     3: {"name": "Усиленная броня", "defense": 4, "type": "metal", "asset": "armor_metal_3.png"},
     4: {"name": "Легендарная броня", "defense": 5, "type": "legendary", "asset": "armor_legendary_4.png"},
 }

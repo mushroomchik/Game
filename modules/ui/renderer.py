@@ -55,7 +55,8 @@ class GameRenderer:
     # =========================================================================
     @staticmethod
     def draw_map(screen, nodes: list, floor: int, player_hp: int, max_hp: int,
-                 gold: int, inventory_btn: Button, message: str = "", next_enemy=None):
+                 gold: int, inventory_btn: Button, message: str = "", next_enemy=None,
+                 fight_btn: Button = None):
         """Отрисовка карты приключений"""
         screen.fill(DARK_BLUE)
 
@@ -68,38 +69,45 @@ class GameRenderer:
         stage_text = _ensure_fonts()['medium'].render(stage_name, True, CYAN)
         screen.blit(stage_text, (SCREEN_WIDTH // 2 - stage_text.get_width() // 2, 75))
 
-        # Узлы карты
-        for node in nodes:
-            node.draw(screen)
-
-        # Информация о следующем враге
+        # Информация о следующем враге (увеличенная)
         if next_enemy:
-            enemy_info_bg = pygame.Rect(SCREEN_WIDTH // 2 - 200, 450, 400, 180)
+            enemy_info_bg = pygame.Rect(SCREEN_WIDTH // 2 - 250, 350, 500, 280)
             pygame.draw.rect(screen, DARK_GRAY, enemy_info_bg, border_radius=10)
-            pygame.draw.rect(screen, RED, enemy_info_bg, 2, border_radius=10)
+            pygame.draw.rect(screen, RED, enemy_info_bg, 3, border_radius=10)
             
-            # Изображение врага из PNG
-            enemy_img_x = SCREEN_WIDTH // 2 - 40
-            enemy_img_y = 465
-            if hasattr(next_enemy, 'image_small') and next_enemy.image_small:
-                screen.blit(next_enemy.image_small, (enemy_img_x, enemy_img_y))
+            # Заголовок
+            enemy_title = _ensure_fonts()['large'].render("Следующий враг:", True, RED)
+            screen.blit(enemy_title, (SCREEN_WIDTH // 2 - enemy_title.get_width() // 2, 360))
+            
+            # Изображение врага (больше)
+            enemy_img_x = SCREEN_WIDTH // 2 - 50
+            enemy_img_y = 410
+            if hasattr(next_enemy, 'image_full') and next_enemy.image_full:
+                screen.blit(next_enemy.image_full, (enemy_img_x, enemy_img_y))
+            elif hasattr(next_enemy, 'image_small') and next_enemy.image_small:
+                scaled = pygame.transform.scale(next_enemy.image_small, (100, 100))
+                screen.blit(scaled, (enemy_img_x, enemy_img_y))
             elif next_enemy.image:
-                screen.blit(next_enemy.image, (enemy_img_x, enemy_img_y))
+                scaled = pygame.transform.scale(next_enemy.image, (100, 100))
+                screen.blit(scaled, (enemy_img_x, enemy_img_y))
             else:
-                # Если нет изображения - рисую прямоугольник с именем
-                pygame.draw.rect(screen, RED, (enemy_img_x, enemy_img_y, 80, 80), border_radius=5)
+                pygame.draw.rect(screen, RED, (enemy_img_x, enemy_img_y, 100, 100), border_radius=5)
             
-            enemy_title = _ensure_fonts()['medium'].render("Следующий враг:", True, RED)
-            screen.blit(enemy_title, (SCREEN_WIDTH // 2 - enemy_title.get_width() // 2, 520))
+            # Имя врага
+            enemy_name = _ensure_fonts()['medium'].render(next_enemy.name, True, WHITE)
+            screen.blit(enemy_name, (SCREEN_WIDTH // 2 - enemy_name.get_width() // 2, 520))
             
-            enemy_name = _ensure_fonts()['small'].render(next_enemy.name, True, WHITE)
-            screen.blit(enemy_name, (SCREEN_WIDTH // 2 - enemy_name.get_width() // 2, 555))
+            # HP
+            enemy_hp = _ensure_fonts()['medium'].render(f"HP: {next_enemy.hp}/{next_enemy.max_hp}", True, GREEN)
+            screen.blit(enemy_hp, (SCREEN_WIDTH // 2 - enemy_hp.get_width() // 2, 555))
             
-            enemy_hp = _ensure_fonts()['small'].render(f"HP: {next_enemy.hp}/{next_enemy.max_hp}", True, GREEN)
-            screen.blit(enemy_hp, (SCREEN_WIDTH // 2 - enemy_hp.get_width() // 2, 580))
-            
-            enemy_dmg = _ensure_fonts()['small'].render(f"Урон: {next_enemy.damage_range[0]}-{next_enemy.damage_range[1]}", True, YELLOW)
-            screen.blit(enemy_dmg, (SCREEN_WIDTH // 2 - enemy_dmg.get_width() // 2, 600))
+            # Урон
+            enemy_dmg = _ensure_fonts()['medium'].render(f"Урон: {next_enemy.damage_range[0]}-{next_enemy.damage_range[1]}", True, YELLOW)
+            screen.blit(enemy_dmg, (SCREEN_WIDTH // 2 - enemy_dmg.get_width() // 2, 585))
+
+        # Кнопка "В бой" под информацией о враге
+        if fight_btn:
+            fight_btn.draw(screen)
 
         # Информация игрока
         info = _ensure_fonts()['small'].render(
@@ -264,7 +272,7 @@ class GameRenderer:
         screen.fill(DARK_GRAY)
 
         # Заголовок
-        title = _ensure_fonts()['large'].render("Снаряжение в бой", True, GOLD)
+        title = _ensure_fonts()['large'].render("Карты в бой", True, GOLD)
         screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 30))
 
         # Счётчик выбранных карт
@@ -279,9 +287,6 @@ class GameRenderer:
         for i, card in enumerate(inventory_cards):
             card.set_position(50 + (i % 8) * 140, 150 + (i // 8) * 200)
             card.draw(screen, force_available=True)
-            if card.selected_for_battle:
-                pygame.draw.rect(screen, GREEN,
-                               (card.x - 2, card.y - 2, card.width + 4, card.height + 4), 2)
 
         # Кнопка "В БОЙ!"
         start_btn = Button(SCREEN_WIDTH // 2 - 100, 720, 200, 60, "В БОЙ!", RED)
@@ -820,7 +825,9 @@ class GameRenderer:
                         kwargs.get('nodes', []), kwargs.get('floor', 1),
                         kwargs.get('player_hp', 25), kwargs.get('max_hp', 25),
                         kwargs.get('gold', 0), kwargs.get('inventory_btn'),
-                        kwargs.get('message', "")),
+                        kwargs.get('message', ""),
+                        kwargs.get('next_enemy'),
+                        kwargs.get('fight_from_map_btn')),
             "INVENTORY": lambda: GameRenderer.draw_inventory(screen,
                         kwargs.get('inventory_cards', []), kwargs.get('inventory_armor', []),
                         kwargs.get('equipped_armor'), kwargs.get('map_btn'),

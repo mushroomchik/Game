@@ -50,13 +50,23 @@ class HealthBar:
 
 class Button:
     """Кнопка с поддержкой иконок и анимацией"""
-    def __init__(self, x, y, width, height, text, color=BLUE, icon_type=None):
+    def __init__(self, x, y, width, height, text, color=BLUE, icon_type=None, icon_image_path=None):
         self.rect = pygame.Rect(x, y, width, height)
         self.text, self.color = text, color
         self.hover_color = tuple(min(255, c+30) for c in color)
         self.icon_type = icon_type
         self.is_hovered, self.enabled = False, True
         self._click_anim = 0
+        # Загрузка PNG иконки если указан путь
+        self.icon_image = None
+        if icon_image_path:
+            try:
+                import os
+                if os.path.exists(icon_image_path):
+                    self.icon_image = pygame.transform.scale(
+                        pygame.image.load(icon_image_path), (32, 32))
+            except:
+                self.icon_image = None
 
     def draw(self, screen, clicked=False):
         # Анимация нажатия
@@ -73,15 +83,18 @@ class Button:
                          self.rect.width, self.rect.height), border_radius=10)
         pygame.draw.rect(screen, WHITE, self.rect, 2, border_radius=10)
 
-        # Текст с авто-уменьшением
-        text_surf = self._render_fit_text(self.text, self.rect.width - BUTTON_TEXT_PADDING)
-        text_rect = text_surf.get_rect(center=self.rect.center)
+        # Текст с авто-уменьшением (сдвигаем вправо если есть иконка слева)
+        icon_offset = 45 if (self.icon_image or self.icon_type) else 0
+        text_surf = self._render_fit_text(self.text, self.rect.width - BUTTON_TEXT_PADDING - icon_offset)
+        text_rect = text_surf.get_rect(center=(self.rect.centerx + icon_offset//2, self.rect.centery))
         screen.blit(text_surf, text_rect)
 
-        # Иконка справа
-        if self.icon_type:
+        # Иконка слева (PNG или рисованная)
+        if self.icon_image:
+            screen.blit(self.icon_image, (self.rect.x + 10, self.rect.centery - 16))
+        elif self.icon_type:
             IconRenderer.draw_icon(screen, self.icon_type,
-                                  self.rect.right-35, self.rect.centery-12, 24)
+                                  self.rect.x + 10, self.rect.centery - 16, 32)
 
     def _render_fit_text(self, text: str, max_width: int):
         surf = _ensure_fonts()['small'].render(text, True, WHITE)
