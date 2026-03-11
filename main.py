@@ -1,17 +1,36 @@
 #!/usr/bin/env python3
-"""
-Dicey Dungeons - Python Edition
-Точка входа в игру
-"""
-
+"""Dicey Dungeons — Точка входа"""
 import sys
-import os
-
-# Добавляем корневую папку в path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
+import pygame
+pygame.init()
 from modules.game import Game
 
-if __name__ == "__main__":
+
+def main():
+    pygame.init()
     game = Game()
-    game.run()
+
+    # Валидация данных при старте
+    from modules.core.validator import validate_game_data
+    errors = validate_game_data()
+    if errors:
+        print("⚠️ Предупреждения валидации:")
+        for e in errors:
+            print(f"  - {e}")
+        # Не прерываем, но логируем
+
+    try:
+        game.run()
+    except Exception as e:
+        print(f"❌ Критическая ошибка: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        pygame.quit()
+        sys.exit()
+
+
+if __name__ == "__main__":
+    main()
+
+#npx @kodadev/koda-cli
