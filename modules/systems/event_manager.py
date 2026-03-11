@@ -36,21 +36,24 @@ class EventManager:
 
     @staticmethod
     def generate_treasure() -> list[dict]:
-        """Генерация сокровищ"""
+        """Генерация сокровищ — карта И броня"""
         items = []
-        if random.random() > 0.5:
-            tier = random.choice([1, 2])
-            armor_data = ARMOR_TIERS[tier]
-            # Если это список (для тира 2), выбираем случайную броню
-            if isinstance(armor_data, list):
-                data = random.choice(armor_data).copy()
-            else:
-                data = armor_data.copy()
-            data["tier"] = tier
-            items.append({"type": "armor", "data": data})
+        
+        # Всегда добавляем карту
+        data = random.choice(TIER_1_CARDS + TIER_2_CARDS)
+        items.append({"type": "card", "data": data})
+        
+        # Всегда добавляем броню
+        tier = random.choice([1, 2])
+        armor_data = ARMOR_TIERS[tier]
+        # Если это список (для тира 2), выбираем случайную броню
+        if isinstance(armor_data, list):
+            data = random.choice(armor_data).copy()
         else:
-            data = random.choice(TIER_1_CARDS + TIER_2_CARDS)
-            items.append({"type": "card", "data": data})
+            data = armor_data.copy()
+        data["tier"] = tier
+        items.append({"type": "armor", "data": data})
+        
         return items
 
     @staticmethod

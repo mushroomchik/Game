@@ -126,7 +126,7 @@ class Game:
         self.player_block = 0
         self.dice_count = DICE_COUNT
         self.inv_mgr.cards = [AbilityCard(*c) for c in STARTING_INVENTORY]
-        self.inv_mgr.armor = [Armor("Старая одежда", 0, 0)]
+        self.inv_mgr.armor = [Armor("Старые доспехи", 0, 0, asset_path="armor_metal_0.png")]
         self.inv_mgr.equipped_armor = self.inv_mgr.armor[0]
         self.map_mgr.reset()  # Сброс карты
         self.map_mgr.generate(1)  # Генерация новой карты
@@ -227,9 +227,9 @@ class Game:
                 max_items = len(self.inventory_cards)
                 visible = 10
             else:
-                scroll_bar_height = 320
+                scroll_bar_height = 420
                 max_items = len(self.inventory_armor)
-                visible = 16
+                visible = 12
             
             if max_items > visible:
                 scroll_rect = pygame.Rect(scroll_bar_x, scroll_bar_y, 15, scroll_bar_height)
@@ -241,16 +241,16 @@ class Game:
                     self.inventory_scroll = max(0, min(self.inventory_scroll, max_scroll))
                     self.dragging_scroll = True
                     return
-            # Клик по броне - выбор или описание (с учётом скролла)
+            # Клик по броне - выбор или описание (с учётом скролла и большего размера)
             if self.inventory_tab == "armor":
-                armor_cols = 8
+                armor_cols = 6
                 armor_start = self.inventory_scroll
-                armor_visible = self.inventory_armor[armor_start:armor_start + 16]
+                armor_visible = self.inventory_armor[armor_start:armor_start + 12]
                 for i, armor in enumerate(armor_visible):
                     row = i // armor_cols
                     col = i % armor_cols
-                    x = 50 + col * 100
-                    y = 180 + row * 80
+                    x = 50 + col * 140
+                    y = 180 + row * 140
                     if armor.is_clicked(pos, x, y):
                         actual_index = armor_start + i
                         armor = self.inventory_armor[actual_index]
@@ -346,12 +346,15 @@ class Game:
         elif self.game_state == "TREASURE":
             # Клик по предмету - забрать (центрирование как в рендере)
             item_count = len(self.treasure_items)
-            item_width = 150
+            item_width = 200  # Больше для крупной брони
             total_width = item_count * item_width
             start_x = (SCREEN_WIDTH - total_width) // 2
             for i, item in enumerate(self.treasure_items):
                 x = start_x + i * item_width
-                item_rect = pygame.Rect(x, 150, item_width, 200)
+                if item["type"] == "card":
+                    item_rect = pygame.Rect(x, 150, 150, 200)
+                else:
+                    item_rect = pygame.Rect(x, 120, 200, 200)  # Больше для брони
                 if item_rect.collidepoint(pos):
                     if item["type"] == "card":
                         from modules.cards import AbilityCard
@@ -361,7 +364,7 @@ class Game:
                     elif item["type"] == "armor":
                         from modules.entities import Armor
                         d = item["data"]
-                        armor = Armor(d["name"], d.get("tier", 1), d["defense"], d.get("type", "normal"), d.get("asset"))
+                        armor = Armor(d["name"], d.get("tier", 1), d["defense"], d.get("type", "normal"), d.get("asset"), d.get("element"))
                         self.inv_mgr.armor.append(armor)
                         self.message = f"Получено: {armor.name}!"
                     self.message_timer = 60

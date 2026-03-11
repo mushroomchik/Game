@@ -220,33 +220,33 @@ class GameRenderer:
                 pygame.draw.rect(screen, GRAY, (SCREEN_WIDTH - 30, 180 + scroll_pos, 15, scroll_thumb_height), border_radius=5)
 
         else:
-            # Броня со скроллом
-            armor_cols = 8
+            # Броня со скроллом (увеличенные иконки)
+            armor_cols = 6  # Меньше колонок из-за большего размера
             armor_start = scroll
-            armor_visible = inventory_armor[armor_start:armor_start + 16]
+            armor_visible = inventory_armor[armor_start:armor_start + 12]
             for i, armor in enumerate(armor_visible):
                 row = i // armor_cols
                 col = i % armor_cols
-                x = 50 + col * 100
-                y = 180 + row * 80
+                x = 50 + col * 140  # Больше расстояние
+                y = 180 + row * 140  # Больше расстояние
                 armor.draw(screen, x, y)
                 if equipped_armor == armor:
-                    pygame.draw.rect(screen, GREEN, (x - 2, y - 2, 54, 54), 2)
+                    pygame.draw.rect(screen, GREEN, (x - 2, y - 2, 124, 124), 3)
                 # Обрезаем название если слишком длинное
                 name_text = armor.name
-                while len(name_text) > 6 and _ensure_fonts()['tiny'].render(name_text, True, WHITE).get_width() > 90:
+                while len(name_text) > 8 and _ensure_fonts()['small'].render(name_text, True, WHITE).get_width() > 130:
                     name_text = name_text[:-1]
                 if name_text != armor.name:
                     name_text = name_text + ".."
-                name = _ensure_fonts()['tiny'].render(name_text, True, WHITE)
-                name_x = x + (50 - name.get_width()) // 2
-                screen.blit(name, (name_x, y + 55))
+                name = _ensure_fonts()['small'].render(name_text, True, WHITE)
+                name_x = x + (120 - name.get_width()) // 2
+                screen.blit(name, (name_x, y + 125))
 
             # Индикатор скролла
-            if len(inventory_armor) > 16:
-                max_scroll = len(inventory_armor) - 16
-                scroll_bar_height = 320
-                scroll_thumb_height = max(20, scroll_bar_height * 16 // len(inventory_armor))
+            if len(inventory_armor) > 12:
+                max_scroll = len(inventory_armor) - 12
+                scroll_bar_height = 420
+                scroll_thumb_height = max(30, scroll_bar_height * 12 // len(inventory_armor))
                 scroll_pos = int(scroll * (scroll_bar_height - scroll_thumb_height) / max(max_scroll, 1))
                 pygame.draw.rect(screen, DARK_GRAY, (SCREEN_WIDTH - 30, 180, 15, scroll_bar_height), border_radius=5)
                 pygame.draw.rect(screen, GRAY, (SCREEN_WIDTH - 30, 180 + scroll_pos, 15, scroll_thumb_height), border_radius=5)
@@ -648,7 +648,7 @@ class GameRenderer:
 
         # Предметы - по центру с учётом количества
         item_count = len(treasure_items)
-        item_width = 150
+        item_width = 200  # Ширина как у карты + отступ
         total_width = item_count * item_width
         start_x = (SCREEN_WIDTH - total_width) // 2
         for i, item in enumerate(treasure_items):
@@ -662,12 +662,13 @@ class GameRenderer:
                 from modules.entities import Armor
                 d = item["data"]
                 tier = d.get("tier", 1)
-                armor = Armor(d["name"], tier, d["defense"], d.get("type", "normal"), d.get("asset"))
+                # Рисуем броню такого же размера как карта (150x190)
+                armor = Armor(d["name"], tier, d["defense"], d.get("type", "normal"), d.get("asset"), d.get("element"))
                 armor.draw(screen, x, 150)
-                # Подсветка при наведении
-                armor_rect = pygame.Rect(x, 150, 50, 50)
-                if armor_rect.collidepoint(pygame.mouse.get_pos()):
-                    pygame.draw.rect(screen, WHITE, armor_rect, 2)
+                # Подсветка при наведении (как у карты)
+                card_rect = pygame.Rect(x, 150, 150, 190)
+                if card_rect.collidepoint(pygame.mouse.get_pos()):
+                    pygame.draw.rect(screen, WHITE, card_rect, 3)
 
         # Подсказка
         msg = _ensure_fonts()['small'].render("Кликните чтобы забрать", True, WHITE)

@@ -24,7 +24,7 @@ EFFECT_COLORS = {
 
 # Броня по тирам
 ARMOR_TIERS = {
-    0: {"name": "Старая одежда", "defense": 0, "type": "normal", "asset": "armor_metal_0.png"},
+    0: {"name": "Старые доспехи", "defense": 0, "type": "normal", "asset": "armor_metal_0.png"},
     1: {"name": "Железная броня", "defense": 2, "type": "metal", "asset": "armor_metal_1.png"},
     2: [
         {"name": "Огненная броня", "defense": 1, "type": "elemental", "element": "fire", "asset": "armor_elemental_2_fire.png"},
