@@ -19,13 +19,6 @@ class Armor:
         self.image = None
         self._load_image()
 
-    def __init__(self, name, tier, defense, armor_type="normal", asset_path=None, element=None):
-        self.name, self.tier, self.defense = name, tier, defense
-        self.armor_type, self.element = armor_type, element
-        self.asset_path = asset_path
-        self.image = None
-        self._load_image()
-
     def _load_image(self):
         # Пробуем разные пути для картинок
         possible_paths = [

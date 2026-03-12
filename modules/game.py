@@ -140,6 +140,8 @@ class Game:
         self.map_mgr.generate(1)  # Генерация новой карты
         self.next_enemy = self._create_enemy(1)  # Создаём первого врага
         self._init_test_enemies()  # Инициализация тестовых врагов
+        self.player_health = HealthBar(UI_POSITIONS['hero_hp'][0], UI_POSITIONS['hero_hp'][1],
+                                       200, 30, self.player_max_hp, GREEN)
         self.game_state = "MAP"
 
     def run(self):
@@ -490,6 +492,8 @@ class Game:
                     elif event["type"] == "campfire":
                         self.player_max_hp += 10
                         self.player_hp = self.player_max_hp  # Полное восстановление
+                        self.player_health = HealthBar(UI_POSITIONS['hero_hp'][0], UI_POSITIONS['hero_hp'][1],
+                                                       200, 30, self.player_max_hp, GREEN)
                         self.message = "HP полностью восстановлено! Макс HP +10"
                         self.message_timer = 120
                         self.game_state = "CAMPFIRE"
@@ -684,6 +688,10 @@ class Game:
         self.current_enemy = self.next_enemy
         self.enemy_health = HealthBar(UI_POSITIONS['enemy_hp'][0], UI_POSITIONS['enemy_hp'][1],
                                       250, 30, self.current_enemy.max_hp, RED)
+        # Обновляем HP бар игрока с текущим max_hp
+        self.player_health = HealthBar(UI_POSITIONS['hero_hp'][0], UI_POSITIONS['hero_hp'][1],
+                                       200, 30, self.player_max_hp, GREEN)
+        self.player_health.update(self.player_hp, self.player_block)
         self.battle_hand = self.inv_mgr.get_battle_hand()
         # Сброс состояния карт перед боем
         for card in self.battle_hand:

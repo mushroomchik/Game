@@ -53,15 +53,21 @@ class BattleManager:
     def enemy_attack(self, armor=None) -> tuple[int, str]:
         """Атака врага"""
         if not self.enemy or self.enemy.dead: return 0, ""
-        dmg, special = self.enemy.attack()
-        # Броня
-        if armor:
+        base_dmg, special = self.enemy.attack()
+        
+        # Применяем эффективность элемента урона врага через броню
+        if armor and armor.armor_type == "elemental" and armor.element:
+            # Если броня элементальная, урон проходит через её тип
+            # Например: огненная броня vs водяной урон = x2 (вода эффективна против огня)
+            # Ищем: атакующий тип (враг) vs защищающийся тип (броня)
+            mult = TYPE_EFFECTIVENESS.get(self.enemy.damage_type, {}).get(armor.element, 1.0)
+            dmg = int(base_dmg * mult)
+            # Вычитаем защиту после применения множителя
             dmg = max(0, dmg - armor.defense)
-            if armor.armor_type == "elemental" and armor.element:
-                mult = TYPE_EFFECTIVENESS.get(armor.element, {}).get(self.enemy.damage_type, 1.0)
-                if mult > 1.0:
-                    reflect = int(armor.defense * mult)
-                    self.enemy.take_damage(reflect, armor.element)
+        else:
+            # Обычная броня - просто вычитаем защиту
+            dmg = max(0, base_dmg - armor.defense) if armor else base_dmg
+        
         # Блок игрока
         if self.player['block'] > 0:
             blocked = min(self.player['block'], dmg)
