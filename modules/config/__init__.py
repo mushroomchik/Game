@@ -28,7 +28,8 @@ __all__ = [
 
     # map_config
     'STAGES', 'MAP_ROWS', 'MAP_COLS', 'NODE_SPACING_X', 'NODE_SPACING_Y',
-    'MAP_START_X', 'MAP_START_Y', 'MAP_NODE_TYPES',
+    'MAP_START_X', 'MAP_START_Y', 'MAP_NODE_TYPES', 'LOCATIONS',
+    'get_location_by_floor', 'get_stage_by_floor', 'get_boss_floor',
 
     # assets
     'ARMOR_TIERS', 'ELEMENT_COLORS', 'EFFECT_COLORS', 'ICON_INVENTORY','BUTTON_TEXT_PADDING',

@@ -4,6 +4,7 @@ import sys
 from modules.config import *
 import modules.utils.fonts as fonts_module
 from modules.utils import IconRenderer
+from modules.cards.card import _ensure_fonts
 from modules.entities import Dice, Enemy, CharacterIcon, Armor
 from modules.ui.components import HealthBar, Button
 from modules.cards import AbilityCard
@@ -55,6 +56,7 @@ class Game:
         self.map_btn = Button(1050, 20, 130, 40, "Карта", BLUE)
         self.to_map_btn = Button(SCREEN_WIDTH // 2 - 80, 700, 160, 50, "На карту", BLUE)
         self.fight_from_map_btn = Button(SCREEN_WIDTH // 2 - 100, 640, 200, 50, "В БОЙ!", RED)
+        self.next_floor_btn = Button(SCREEN_WIDTH // 2 - 80, 500, 160, 50, "В меню", BLUE)
         self.turn = "PLAYER"
         self.enemy_info_visible = False
         self.enemy_info_pos = (0, 0)
@@ -78,6 +80,11 @@ class Game:
         self.enemy_damage_flash_timer = 0
         # Тестовая кнопка убийства врага
         self.kill_enemy_btn = Button(SCREEN_WIDTH - 150, 650, 130, 40, "[TEST] Убить", RED)
+        # Тестовая кнопка выбора врага
+        self.test_enemy_btn = Button(SCREEN_WIDTH - 150, 600, 130, 40, "[TEST] Враг", BLUE)
+        self.test_enemy_menu_visible = False
+        self.test_enemies = []  # Список всех врагов для тестирования
+        self.test_enemy_scroll = 0  # Скролл в меню выбора врага
         # Атрибуты для MENU
         self.max_floor = MAX_FLOOR
         self.gold = 0
@@ -93,6 +100,7 @@ class Game:
         self.inventory_cards = []
         self.inventory_armor = []
         self.equipped_armor = None
+        self.next_enemy = None  # Следующий враг для отображения на карте
         self.message = ""
         self.message_timer = 0
 
@@ -130,6 +138,8 @@ class Game:
         self.inv_mgr.equipped_armor = self.inv_mgr.armor[0]
         self.map_mgr.reset()  # Сброс карты
         self.map_mgr.generate(1)  # Генерация новой карты
+        self.next_enemy = self._create_enemy(1)  # Создаём первого врага
+        self._init_test_enemies()  # Инициализация тестовых врагов
         self.game_state = "MAP"
 
     def run(self):
@@ -156,6 +166,16 @@ class Game:
                     else:
                         max_scroll = max(0, len(self.inventory_armor) - 16)
                     self.inventory_scroll = max(0, min(self.inventory_scroll - event.y, max_scroll))
+                elif self.game_state == "MAP" and self.test_enemy_menu_visible:
+                    max_scroll = max(0, len(self.test_enemies) - 8)
+                    self.test_enemy_scroll = max(0, min(self.test_enemy_scroll - event.y, max_scroll))
+            elif event.type == pygame.KEYDOWN:
+                if self.game_state == "MAP" and self.test_enemy_menu_visible:
+                    if event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                        max_scroll = max(0, len(self.test_enemies) - 8)
+                        self.test_enemy_scroll = min(self.test_enemy_scroll + 1, max_scroll)
+                    elif event.key == pygame.K_UP or event.key == pygame.K_w:
+                        self.test_enemy_scroll = max(0, self.test_enemy_scroll - 1)
             elif event.type == pygame.MOUSEBUTTONUP:
                 if self.dragging_scroll:
                     self.dragging_scroll = False
@@ -186,12 +206,45 @@ class Game:
         """Обработка кликов по состоянию"""
         if self.game_state == "MENU" and self.start_btn.is_clicked(pos):
             self._reset_game()
+        elif self.game_state == "GAME_OVER" and self.next_floor_btn.is_clicked(pos):
+            self.game_state = "MENU"
+        elif self.game_state == "VICTORY" and self.next_floor_btn.is_clicked(pos):
+            self.game_state = "MENU"
         elif self.game_state == "MAP":
             if self.inventory_btn.is_clicked(pos):
                 self.game_state = "INVENTORY"
             elif hasattr(self, 'fight_from_map_btn') and self.fight_from_map_btn.is_clicked(pos):
                 # Клик по кнопке "В бой" - переход к выбору карт
                 self._visit_location(self.map_mgr.node.type)
+            elif self.test_enemy_btn.is_clicked(pos):
+                self.test_enemy_menu_visible = not self.test_enemy_menu_visible
+                self.test_enemy_scroll = 0
+            # Обработка выбора врага из тестового меню
+            elif self.test_enemy_menu_visible:
+                menu_x, menu_y = SCREEN_WIDTH - 290, 540
+                menu_w, item_h = 270, 35
+                visible_count = 8  # Сколько врагов видно
+                max_scroll = max(0, len(self.test_enemies) - visible_count)
+                for i in range(self.test_enemy_scroll, min(self.test_enemy_scroll + visible_count, len(self.test_enemies))):
+                    enemy = self.test_enemies[i]
+                    btn_rect = pygame.Rect(menu_x, menu_y + (i - self.test_enemy_scroll) * item_h, menu_w, item_h)
+                    if btn_rect.collidepoint(pos):
+                        # Создаём врага для боя
+                        self.next_enemy = Enemy(
+                            name=enemy["name"],
+                            hp=enemy["hp"],
+                            damage_range=enemy["dmg"],
+                            image_path=f"assets/images/{enemy['icon']}.png",
+                            icon_type=enemy["icon"],
+                            enemy_type=enemy["enemy_type"],
+                            damage_type=enemy["dmg_type"]
+                        )
+                        self.test_enemy_menu_visible = False
+                        break
+                # Закрыть меню если клик вне его
+                menu_rect = pygame.Rect(menu_x, menu_y, 270, visible_count * item_h + 10)
+                if not menu_rect.collidepoint(pos) and not self.test_enemy_btn.is_clicked(pos):
+                    self.test_enemy_menu_visible = False
         elif self.game_state == "PRE_BATTLE":
             if self.fight_btn.is_clicked(pos):
                 # Выбрать только отмеченные карты (до 5)
@@ -270,6 +323,7 @@ class Game:
             if self.to_map_btn.is_clicked(pos) or (self.shop_buttons.get('next_floor') and self.shop_buttons['next_floor'].is_clicked(pos)):
                 self.map_mgr.generate(self.floor)
                 self.map_nodes = self.map_mgr.nodes
+                self.next_enemy = self._create_enemy(self.floor)
                 self.game_state = "MAP"
             # Кнопки улучшения/отмены
             if self.selected_upgrade_card is not None:
@@ -338,10 +392,12 @@ class Game:
             if btn_rect.collidepoint(pos):
                 self.map_mgr.generate(self.floor)
                 self.map_nodes = self.map_mgr.nodes
+                self.next_enemy = self._create_enemy(self.floor)
                 self.game_state = "MAP"
         elif self.game_state in ("TREASURE",) and self.to_map_btn.is_clicked(pos):
             self.map_mgr.generate(self.floor)
             self.map_nodes = self.map_mgr.nodes
+            self.next_enemy = self._create_enemy(self.floor)
             self.game_state = "MAP"
         elif self.game_state == "TREASURE":
             # Клик по предмету - забрать (центрирование как в рендере)
@@ -390,6 +446,7 @@ class Game:
                     else:
                         self.map_mgr.proceed()
                         self.map_mgr.generate(self.floor)
+                        self.next_enemy = self._create_enemy(self.floor)  # Новый враг для следующего этажа
                         self.game_state = "MAP"
                     break
         elif self.game_state == "BATTLE":
@@ -443,6 +500,7 @@ class Game:
                     else:
                         self.map_mgr.proceed()
                         self.map_mgr.generate(self.floor)
+                        self.next_enemy = self._create_enemy(self.floor)  # Новый враг для следующего этажа
                     break
 
     def _handle_battle_click(self, pos):
@@ -598,10 +656,31 @@ class Game:
             self._init_shop_state()
         # ... остальные типы
 
+    def _init_test_enemies(self):
+        """Инициализация списка всех врагов для тестирования"""
+        from modules.config.map_config import LOCATIONS
+        self.test_enemies = []
+        for loc_key, loc_data in LOCATIONS.items():
+            # Обычные враги
+            for name, hp, dmg_min, dmg_max, icon, dmg_type in loc_data["enemies"]:
+                enemy_type = "spirit" if "дух" in name.lower() else "normal"
+                self.test_enemies.append({
+                    "name": name, "hp": hp, "dmg": (dmg_min, dmg_max),
+                    "icon": icon, "dmg_type": dmg_type, "enemy_type": enemy_type
+                })
+            # Босс
+            name, hp, dmg_min, dmg_max, icon, dmg_type = loc_data["boss"]
+            enemy_type = "spirit" if "дух" in name.lower() else "boss"
+            self.test_enemies.append({
+                "name": name, "hp": hp, "dmg": (dmg_min, dmg_max),
+                "icon": icon, "dmg_type": dmg_type, "enemy_type": enemy_type
+            })
+
     def _start_battle(self):
         """Начало боя"""
         self.game_state = "BATTLE"
-        self.current_enemy = self._create_enemy(self.floor)
+        # Используем врага, который был показан на карте
+        self.current_enemy = self.next_enemy
         self.enemy_health = HealthBar(UI_POSITIONS['enemy_hp'][0], UI_POSITIONS['enemy_hp'][1],
                                       250, 30, self.current_enemy.max_hp, RED)
         self.battle_hand = self.inv_mgr.get_battle_hand()
@@ -616,36 +695,50 @@ class Game:
         self.message = f"Бой! {self.current_enemy.name}"
 
     def _create_enemy(self, floor: int) -> Enemy:
-        """Создание врага для этажа (детерминированное)"""
+        """Создание врага для этажа (рандомное для обычных боев, фиксированное для боссов)"""
+        import random
+        from modules.config.map_config import LOCATIONS, get_location_by_floor, get_stage_by_floor, get_boss_floor
         
-        # Враги по этажам (один враг на этаж)
-        enemy_data = {
-            1: ("Слизень", 15, (3, 5), "slime", "normal"),
-            2: ("Гоблин", 20, (4, 7), "goblin", "normal"),
-            3: ("Волк", 25, (5, 8), "wolf", "normal"),
-            4: ("Огр", 35, (6, 10), "ogre", "normal"),
-            5: ("Огненный дракон", 80, (10, 15), "fire_dragon", "fire"),  # Босс
-            6: ("Огненный слайм", 30, (6, 10), "fire_slime", "fire"),
-            7: ("Магмовый зверь", 40, (8, 12), "magma_beast", "fire"),
-            8: ("Огненный дух", 35, (7, 12), "fire_spirit", "fire"),
-            9: ("Лавовый голем", 50, (9, 14), "lava_golem", "fire"),
-            10: ("Кракен", 100, (12, 18), "kraken", "water"),  # Босс
-            11: ("Водяной слайм", 40, (8, 12), "water_slime", "water"),
-            12: ("Водяной дух", 45, (9, 14), "water_spirit", "water"),
-            13: ("Рыбо-человек", 55, (10, 15), "fish_man", "water"),
-            14: ("Нага", 60, (11, 16), "naga", "water"),
-            15: ("Древний дракон", 150, (15, 25), "fire_dragon", "fire"),  # Финальный босс
-        }
+        # Определяем локацию по этажу
+        location_key = get_location_by_floor(floor)
+        location_data = LOCATIONS[location_key]
         
-        name, hp, dmg, icon, dmg_type = enemy_data.get(floor, ("Слизень", 15, (3, 5), "slime", "normal"))
+        # Проверяем, босс ли это
+        stage = get_stage_by_floor(floor)
+        boss_floor = get_boss_floor(stage)
+        is_boss = (floor == boss_floor)
+        
+        # Коэффициент сложности по этажу (базовый = 1.0, растёт с этажом)
+        difficulty_mult = 1.0 + (floor - 1) * 0.15
+        
+        if is_boss:
+            # Босс - используем фиксированного босса локации
+            name, base_hp, base_dmg_min, base_dmg_max, icon, dmg_type = location_data["boss"]
+            # Боссы имеют повышенный множитель (x1.5 от обычной сложности этажа)
+            hp = int(base_hp * difficulty_mult * 1.5)
+            dmg_min = int(base_dmg_min * difficulty_mult * 1.3)
+            dmg_max = int(base_dmg_max * difficulty_mult * 1.3)
+            # Босс-дух имеет тип spirit, иначе boss
+            enemy_type = "spirit" if "дух" in name.lower() else "boss"
+        else:
+            # Обычный враг - рандомный выбор из списка локации
+            name, base_hp, base_dmg_min, base_dmg_max, icon, dmg_type = random.choice(location_data["enemies"])
+            hp = int(base_hp * difficulty_mult)
+            dmg_min = int(base_dmg_min * difficulty_mult)
+            dmg_max = int(base_dmg_max * difficulty_mult)
+            # Определяем тип врага: духи имеют особую логику урона
+            if "дух" in name.lower():
+                enemy_type = "spirit"
+            else:
+                enemy_type = "normal"
         
         return Enemy(
             name=name,
             hp=hp,
-            damage_range=dmg,
+            damage_range=(dmg_min, dmg_max),
             image_path=f"assets/images/{icon}.png",
             icon_type=icon,
-            enemy_type="normal" if "дух" not in name else "spirit",
+            enemy_type=enemy_type,
             damage_type=dmg_type
         )
 
@@ -691,8 +784,7 @@ class Game:
             GameRenderer.draw_menu(self.screen, self.start_btn)
 
         elif self.game_state == "MAP":
-            # Создаём врага для отображения (только данные, не для боя)
-            next_enemy = self._create_enemy(self.floor)
+            # Используем сохранённого врага
             GameRenderer.draw_map(
                 self.screen,
                 [],  # Узлы карты больше не рисуются
@@ -702,9 +794,26 @@ class Game:
                 self.gold,
                 self.inventory_btn,
                 self.message,
-                next_enemy,
+                self.next_enemy,
                 self.fight_from_map_btn
             )
+            # Тестовая кнопка и меню выбора врага
+            self.test_enemy_btn.draw(self.screen)
+            if self.test_enemy_menu_visible:
+                menu_x, menu_y = SCREEN_WIDTH - 290, 540
+                item_h = 35
+                visible_count = 8
+                menu_h = visible_count * item_h + 10
+                menu_bg = pygame.Rect(menu_x, menu_y, 270, menu_h)
+                pygame.draw.rect(self.screen, DARK_GRAY, menu_bg, border_radius=5)
+                pygame.draw.rect(self.screen, WHITE, menu_bg, 2, border_radius=5)
+                for i in range(self.test_enemy_scroll, min(self.test_enemy_scroll + visible_count, len(self.test_enemies))):
+                    enemy = self.test_enemies[i]
+                    btn_rect = pygame.Rect(menu_x, menu_y + (i - self.test_enemy_scroll) * item_h, 270, item_h)
+                    color = RED if enemy["enemy_type"] == "boss" else (YELLOW if enemy["enemy_type"] == "spirit" else WHITE)
+                    pygame.draw.rect(self.screen, color if btn_rect.collidepoint(pygame.mouse.get_pos()) else DARK_BLUE, btn_rect, border_radius=3)
+                    text = _ensure_fonts()['tiny'].render(enemy["name"], True, WHITE)
+                    self.screen.blit(text, (menu_x + 10, menu_y + (i - self.test_enemy_scroll) * item_h + 10))
 
         elif self.game_state == "INVENTORY":
             # Обновляем данные перед отрисовкой

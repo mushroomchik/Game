@@ -55,10 +55,8 @@ class Enemy:
         screen.blit(name_text, (x + 60 - name_text.get_width() // 2, y + 130))
 
     def take_damage(self, amount: int, damage_type: str = "normal") -> int:
-        """Применение урона с учётом типа атаки"""
-        multiplier = self._get_effectiveness_multiplier(damage_type)
-        effective_damage = int(amount * multiplier)
-        actual_damage = max(0, effective_damage - self.block)
+        """Применение урона (уже с учётом эффективности)"""
+        actual_damage = max(0, amount - self.block)
         self.block = 0
         self.hp = max(0, self.hp - actual_damage)
         if self.hp <= 0:
@@ -71,11 +69,17 @@ class Enemy:
         enemy_category = getattr(self, 'enemy_type', 'normal')
         enemy_element = getattr(self, 'damage_type', 'normal')
         
+        # Для духов: физический = 0, элементальный x2 от базовой эффективности
         if enemy_category == "spirit":
-            return TYPE_EFFECTIVENESS.get(attack_type, {}).get("spirit", 4.0)
-        elif enemy_category == "elemental":
+            if attack_type == "normal":
+                return 0.0
+            base_mult = TYPE_EFFECTIVENESS.get(attack_type, {}).get(enemy_element, 1.0)
+            return base_mult * 2.0
+        
+        if enemy_category == "elemental":
             return TYPE_EFFECTIVENESS.get(attack_type, {}).get("elemental", 0.25)
         
+        # Обычные враги - используем стандартную таблицу
         return TYPE_EFFECTIVENESS.get(attack_type, {}).get(enemy_element, 1.0)
 
     def add_block(self, amount): self.block += amount
