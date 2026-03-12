@@ -632,6 +632,7 @@ class Game:
 
     def _roll_dice(self):
         """Бросок кубиков"""
+        self.dice_count = get_dice_count_by_floor(self.floor)
         self.dice_list = [Dice(UI_POSITIONS['dice_zone'][0] + 25 + i * 85, UI_POSITIONS['dice_zone'][1] + 20)
                           for i in range(self.dice_count)]
         for d in self.dice_list: d.roll()

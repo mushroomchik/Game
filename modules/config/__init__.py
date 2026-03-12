@@ -17,6 +17,7 @@ __all__ = [
     # gameplay
     'PLAYER_MAX_HP', 'DICE_COUNT', 'MAX_FLOOR', 'FLOOR_HEAL', 'CARDS_PER_TURN',
     'DICE_MILESTONES', 'STARTING_GOLD', 'GOLD_PER_VICTORY', 'GOLD_PER_BOSS',
+    'get_dice_count_by_floor',
     'SELL_PRICE_MULTIPLIER', 'UPGRADE_COSTS', 'REWARD_CHANCES', 'BOSS_FLOORS',
 
     # cards_data
