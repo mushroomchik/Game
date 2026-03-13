@@ -569,13 +569,17 @@ class GameRenderer:
         # Карты на продажу
         buy_title = _ensure_fonts()['small'].render("Купить карты:", True, WHITE)
         screen.blit(buy_title, (150, 170))
+        shop_hover_disabled = selected_upgrade_card is not None  # Блокируем hover если открыто окно
         for i, card in enumerate(shop_cards):
             card.set_position(150 + i * 200, 210)
-            card.check_hover(pygame.mouse.get_pos())
+            if not shop_hover_disabled:
+                card.check_hover(pygame.mouse.get_pos())
+            else:
+                card.hovered = False
             card.draw(screen, show_price=True, price_type="buy", player_gold=gold)
 
         # Инвентарь (продажа/апгрейд)
-        sell_title = _ensure_fonts()['small'].render("Инвентарь (двойной клик для продажи):", True, WHITE)
+        sell_title = _ensure_fonts()['small'].render("Инвентарь (клик для апгрейда/продажи):", True, WHITE)
         screen.blit(sell_title, (150, 420))
         start_x, start_y = 150, 460
         cards_per_row = 6
@@ -583,7 +587,10 @@ class GameRenderer:
             row = i // cards_per_row
             col = i % cards_per_row
             card.set_position(start_x + col * 155, start_y + row * 200)
-            card.check_hover(pygame.mouse.get_pos())
+            if not shop_hover_disabled:
+                card.check_hover(pygame.mouse.get_pos())
+            else:
+                card.hovered = False
             card.draw(screen, show_price=True, price_type="sell", player_gold=gold)
             if selected_upgrade_card == i:
                 pygame.draw.rect(screen, BLUE,
@@ -597,23 +604,59 @@ class GameRenderer:
                             max(200, (len(inventory_cards) // 6 + 1) * 200 + 10)),
                            4, border_radius=15)
 
-        # Информация об апгрейде
+        # Информация об апгрейде - крупное окно по центру
         if selected_upgrade_card is not None and 0 <= selected_upgrade_card < len(inventory_cards):
             card = inventory_cards[selected_upgrade_card]
             upgrade_cost = UPGRADE_COSTS.get(card.tier, 999)
             upgrade_color = GREEN if gold >= upgrade_cost else RED
             upgrade_key = (card.name, card.tier)
 
+            # Окно апгрейда по центру
+            upgrade_box_w, upgrade_box_h = 400, 150
+            upgrade_box_x = (SCREEN_WIDTH - upgrade_box_w) // 2
+            upgrade_box_y = (SCREEN_HEIGHT - upgrade_box_h) // 2
+
+            # Фон окна
+            pygame.draw.rect(screen, DARK_BLUE, (upgrade_box_x, upgrade_box_y, upgrade_box_w, upgrade_box_h), border_radius=15)
+            pygame.draw.rect(screen, GOLD, (upgrade_box_x, upgrade_box_y, upgrade_box_w, upgrade_box_h), 3, border_radius=15)
+
+            # Заголовок
+            upgrade_title = _ensure_fonts()['large'].render("УЛУЧШЕНИЕ", True, GOLD)
+            screen.blit(upgrade_title, (upgrade_box_x + (upgrade_box_w - upgrade_title.get_width()) // 2, upgrade_box_y + 20))
+
+            # Название карты и новое название (с обрезкой если > 7 символов)
             if upgrade_key in CARD_UPGRADES:
                 upgrade_name = CARD_UPGRADES[upgrade_key][0]
-                upgrade_info = _ensure_fonts()['small'].render(f"→ {upgrade_name} за", True, WHITE)
             else:
-                upgrade_info = _ensure_fonts()['small'].render(f"Апгрейд T{card.tier + 1}:", True, WHITE)
+                upgrade_name = f"Карта Tier {card.tier + 1}"
 
-            cost_info = _ensure_fonts()['small'].render(f"{upgrade_cost}G", True, upgrade_color)
-            screen.blit(upgrade_info, (450, 670))
-            screen.blit(cost_info, (650, 670))
-            IconRenderer.draw_gold_icon(screen, 710, 668, 18)
+            # Обрезка старого названия
+            old_name_text = card.name[:5] + "..." if len(card.name) > 7 else card.name
+            card_name = _ensure_fonts()['medium'].render(old_name_text, True, WHITE)
+            screen.blit(card_name, (upgrade_box_x + 20, upgrade_box_y + 65))
+
+            arrow = _ensure_fonts()['medium'].render("->", True, YELLOW)
+            screen.blit(arrow, (upgrade_box_x + upgrade_box_w // 2 - 25, upgrade_box_y + 65))
+
+            # Обрезка нового названия с +
+            new_name_text = upgrade_name[:5] + "..." if len(upgrade_name) > 7 else upgrade_name
+            if len(upgrade_name) > 7:
+                new_name_text += " +"
+            new_name = _ensure_fonts()['medium'].render(new_name_text, True, GREEN)
+            screen.blit(new_name, (upgrade_box_x + upgrade_box_w - new_name.get_width() - 20, upgrade_box_y + 65))
+
+            # Стоимость апгрейда (слева)
+            cost_label = _ensure_fonts()['small'].render("Цена:", True, WHITE)
+            screen.blit(cost_label, (upgrade_box_x + 20, upgrade_box_y + 110))
+            cost_info = _ensure_fonts()['medium'].render(f"{upgrade_cost}G", True, upgrade_color)
+            screen.blit(cost_info, (upgrade_box_x + 100, upgrade_box_y + 108))
+
+            # Цена продажи (справа)
+            sell_price = card.get_sell_price()
+            sell_label = _ensure_fonts()['small'].render("Продать:", True, WHITE)
+            screen.blit(sell_label, (upgrade_box_x + 200, upgrade_box_y + 110))
+            sell_info = _ensure_fonts()['medium'].render(f"{sell_price}G", True, ORANGE)
+            screen.blit(sell_info, (upgrade_box_x + 305, upgrade_box_y + 108))
 
         # Кнопки
         if shop_buttons.get('next_floor'):
@@ -621,6 +664,8 @@ class GameRenderer:
         if selected_upgrade_card is not None:
             if shop_buttons.get('upgrade'):
                 shop_buttons['upgrade'].draw(screen)
+            if shop_buttons.get('sell'):
+                shop_buttons['sell'].draw(screen)
             if shop_buttons.get('cancel'):
                 shop_buttons['cancel'].draw(screen)
 

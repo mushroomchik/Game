@@ -326,15 +326,9 @@ class Game:
                             self.message_timer = 60
                         return
         elif self.game_state == "SHOP":
-            # Обработка кликов в магазине
-            # Кнопка "На карту"
-            if self.to_map_btn.is_clicked(pos) or (self.shop_buttons.get('next_floor') and self.shop_buttons['next_floor'].is_clicked(pos)):
-                self.map_mgr.generate(self.floor)
-                self.map_nodes = self.map_mgr.nodes
-                self.next_enemy = self._create_enemy(self.floor)
-                self.game_state = "MAP"
-            # Кнопки улучшения/отмены
+            # Если открыто окно апгрейда - обрабатываем только кнопки окна
             if self.selected_upgrade_card is not None:
+                # Кнопка "Улучшить"
                 if self.shop_buttons.get('upgrade') and self.shop_buttons['upgrade'].is_clicked(pos):
                     success, msg = self.inv_mgr.upgrade_card(self.selected_upgrade_card)
                     self.message = msg
@@ -344,9 +338,49 @@ class Game:
                         self.inventory_cards = self.inv_mgr.cards
                     self.selected_upgrade_card = None
                     return
+                # Кнопка "Продать"
+                if self.shop_buttons.get('sell') and self.shop_buttons['sell'].is_clicked(pos):
+                    card = self.inventory_cards[self.selected_upgrade_card]
+                    price = card.get_sell_price()
+                    if price > 0:
+                        self.inv_mgr.gold += price
+                        self.inv_mgr.cards.pop(self.selected_upgrade_card)
+                        self.inventory_cards = self.inv_mgr.cards
+                        self.message = f"Продано: {card.name} за {price}G!"
+                        self.message_timer = 60
+                    self.selected_upgrade_card = None
+                    return
+                # Кнопка "Отмена"
                 if self.shop_buttons.get('cancel') and self.shop_buttons['cancel'].is_clicked(pos):
                     self.selected_upgrade_card = None
                     return
+                # Клик вне окна - просто закрываем (без действия)
+                # Проверяем, что клик вне зоны окна апгрейда
+                upgrade_box_w, upgrade_box_h = 400, 150
+                upgrade_box_x = (SCREEN_WIDTH - upgrade_box_w) // 2
+                upgrade_box_y = (SCREEN_HEIGHT - upgrade_box_h) // 2
+                upgrade_rect = pygame.Rect(upgrade_box_x, upgrade_box_y, upgrade_box_w, upgrade_box_h)
+                if not upgrade_rect.collidepoint(pos):
+                    # Проверяем что это не кнопка
+                    btn_clicked = False
+                    for btn_key in ['upgrade', 'sell', 'cancel']:
+                        if self.shop_buttons.get(btn_key) and self.shop_buttons[btn_key].is_clicked(pos):
+                            btn_clicked = True
+                            break
+                    if not btn_clicked:
+                        self.selected_upgrade_card = None
+                    return
+                return  # Блокируем все остальные клики при открытом окне
+
+            # Обработка кликов в магазине (когда окно апгрейда закрыто)
+            # Кнопка "На карту"
+            if self.to_map_btn.is_clicked(pos) or (self.shop_buttons.get('next_floor') and self.shop_buttons['next_floor'].is_clicked(pos)):
+                self.map_mgr.generate(self.floor)
+                self.map_nodes = self.map_mgr.nodes
+                self.next_enemy = self._create_enemy(self.floor)
+                self.game_state = "MAP"
+                return
+
             # Клик по карте в магазине - покупка
             for i, card in enumerate(self.shop_cards):
                 if card.is_clicked(pos):
@@ -354,46 +388,20 @@ class Game:
                         self.inv_mgr.gold -= card.price
                         self.inv_mgr.cards.append(card)
                         self.inventory_cards = self.inv_mgr.cards
-                        self.shop_cards.remove(card)  # Удаляем купленную карту из магазина
+                        self.shop_cards.remove(card)
                         self.message = f"Куплено: {card.name}!"
                         self.message_timer = 60
                     else:
                         self.message = "Недостаточно золота!"
                         self.message_timer = 60
                     return
-            # Клик по карте в инвентаре - выбор для апгрейда / продажа по двойному клику
+
+            # Клик по карте в инвентаре - выбор для апгрейда
             for i, card in enumerate(self.inventory_cards):
                 if card.is_clicked(pos):
-                    if hasattr(card, 'last_click_time') and pygame.time.get_ticks() - card.last_click_time < 300:
-                        # Двойной клик - продажа
-                        price = card.get_sell_price()
-                        if price > 0:
-                            self.inv_mgr.gold += price
-                            self.inv_mgr.cards.pop(i)
-                            self.inventory_cards = self.inv_mgr.cards
-                            self.message = f"Продано: {card.name} за {price}G!"
-                            self.message_timer = 60
-                        card.last_click_time = 0
-                    else:
-                        # Первый клик - выбор для апгрейда
-                        self.selected_upgrade_card = i
-                        card.last_click_time = pygame.time.get_ticks()
+                    self.selected_upgrade_card = i
                     return
-            # Кнопка улучшения
-            if self.selected_upgrade_card is not None and self.shop_buttons.get('upgrade'):
-                if self.shop_buttons['upgrade'].is_clicked(pos):
-                    success, msg = self.inv_mgr.upgrade_card(self.selected_upgrade_card)
-                    self.message = msg
-                    self.message_timer = 60
-                    if success:
-                        self.upgrade_flash_timer = 15
-                        self.inventory_cards = self.inv_mgr.cards
-                    self.selected_upgrade_card = None
-                    return
-            # Кнопка отмены
-            if self.shop_buttons.get('cancel') and self.shop_buttons['cancel'].is_clicked(pos):
-                self.selected_upgrade_card = None
-                return
+            return
         elif self.game_state == "CAMPFIRE":
             # Клик по кнопке "Дальше" (координаты как в рендере)
             btn_rect = pygame.Rect(SCREEN_WIDTH // 2 - 100, 450, 200, 60)
@@ -566,10 +574,14 @@ class Game:
         if self.current_enemy and self.current_enemy.dead:
             self._enemy_defeated()
         else:
-            # Автоматическое завершение хода если все кубики использованы
+            # Автоматическое завершение хода если все кубики или карты использованы
             unused_dice = [d for d in self.dice_list if not d.used]
-            if not unused_dice:
-                self.message = "Все кубики использованы!"
+            used_cards = [c for c in self.battle_hand if c.used_this_turn]
+            if not unused_dice or len(used_cards) == len(self.battle_hand):
+                if not unused_dice:
+                    self.message = "Все кубики использованы!"
+                else:
+                    self.message = "Все карты использованы!"
                 self.message_timer = 60
                 self.turn = "ENEMY"
                 self.turn_mgr.start_enemy_turn(self._enemy_turn)
@@ -582,10 +594,13 @@ class Game:
         # Сбрасываем состояние карт
         for card in self.inventory_cards:
             card.hovered = False
+        # Кнопки под окном апгрейда (по центру)
+        btn_y = (SCREEN_HEIGHT + 150) // 2 + 10  # Под окном апгрейда
         self.shop_buttons = {
             'next_floor': Button(SCREEN_WIDTH // 2 - 80, 700, 160, 50, "На карту", BLUE),
-            'upgrade': Button(450, 700, 120, 40, "Улучшить", GREEN),
-            'cancel': Button(580, 700, 120, 40, "Отмена", RED),
+            'upgrade': Button(SCREEN_WIDTH // 2 - 190, btn_y, 120, 40, "Улучшить", GREEN),
+            'sell': Button(SCREEN_WIDTH // 2 - 60, btn_y, 120, 40, "Продать", ORANGE),
+            'cancel': Button(SCREEN_WIDTH // 2 + 70, btn_y, 120, 40, "Отмена", RED),
         }
 
     def _enemy_defeated(self):

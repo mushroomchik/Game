@@ -89,11 +89,11 @@ class Enemy:
         base_dmg = random.randint(self.damage_range[0], self.damage_range[1])
         if self.special_ability:
             if self.special_ability == "fire" and random.random() < 0.3:
-                return base_dmg + 5, "ОГОНЬ!"
+                return base_dmg + 5, "[ОГОНЬ]"
             elif self.special_ability == "poison" and random.random() < 0.3:
-                return base_dmg, "ЯД!"
+                return base_dmg, "[ЯД]"
             elif self.special_ability == "freeze" and random.random() < 0.2:
-                return base_dmg, "ЗАМОРОЗКА!"
+                return base_dmg, "[ЗАМОРОЗКА]"
         return base_dmg, ""
 
     def get_info_text(self) -> list[str]:
