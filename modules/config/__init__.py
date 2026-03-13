@@ -33,7 +33,7 @@ __all__ = [
     'get_location_by_floor', 'get_stage_by_floor', 'get_boss_floor',
 
     # assets
-    'ARMOR_TIERS', 'ELEMENT_COLORS', 'EFFECT_COLORS', 'ICON_INVENTORY','BUTTON_TEXT_PADDING',
+    'ARMOR_TIERS', 'ARMOR_UPGRADES', 'ELEMENT_COLORS', 'EFFECT_COLORS', 'ICON_INVENTORY','BUTTON_TEXT_PADDING',
 
 'SOUND_ENABLED', 'SOUNDS', 'MUSIC_ENABLED', 'MUSIC_VOLUME', 'SFX_VOLUME', 'MUSIC',
 ]

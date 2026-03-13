@@ -67,7 +67,8 @@ class Game:
         self.armor_tooltip_pos = (0, 0)
         self.armor_tooltip_armor = None
         self.player_block = 0  # Блок игрока
-        self.inventory_tab = "cards"  # "cards" или "armor"
+        self.inventory_tab = "cards"  # "cards", "armor" или "smith"
+        self.selected_armor_for_craft = []  # Выбранные брони для крафта
         self.inventory_scroll = 0  # Позиция скролла
         self.dragging_scroll = False  # Флаг для перетаскивания ползунка
         self.event_choices = []
@@ -272,12 +273,17 @@ class Game:
             # Клик по вкладкам
             cards_tab_rect = pygame.Rect(50, 120, 150, 40)
             armor_tab_rect = pygame.Rect(210, 120, 150, 40)
+            smith_tab_rect = pygame.Rect(370, 120, 150, 40)
             if cards_tab_rect.collidepoint(pos):
                 self.inventory_tab = "cards"
                 self.inventory_scroll = 0
                 return
             if armor_tab_rect.collidepoint(pos):
                 self.inventory_tab = "armor"
+                self.inventory_scroll = 0
+                return
+            if smith_tab_rect.collidepoint(pos):
+                self.inventory_tab = "smith"
                 self.inventory_scroll = 0
                 return
             # Клик по ползунку скролла
@@ -302,8 +308,7 @@ class Game:
                     self.inventory_scroll = max(0, min(self.inventory_scroll, max_scroll))
                     self.dragging_scroll = True
                     return
-            # Клик по броне - выбор или описание (с учётом скролла и большего размера)
-            if self.inventory_tab == "armor":
+            elif self.inventory_tab == "armor":
                 armor_cols = 6
                 armor_start = self.inventory_scroll
                 armor_visible = self.inventory_armor[armor_start:armor_start + 12]
@@ -325,6 +330,33 @@ class Game:
                             self.message = f"Надето: {armor.name}!"
                             self.message_timer = 60
                         return
+            # Клик по кузнице - обработка крафта
+            if self.inventory_tab == "smith":
+                from modules.config import ARMOR_UPGRADES
+                # Группируем брони по имени
+                armor_groups = {}
+                for i, armor in enumerate(self.inventory_armor):
+                    key = (armor.name, armor.tier)
+                    if key not in armor_groups:
+                        armor_groups[key] = []
+                    armor_groups[key].append(i)
+                
+                # Проверяем клик по группам
+                y_pos = 220
+                for (name, tier), indices in armor_groups.items():
+                    if len(indices) >= 3:
+                        group_rect = pygame.Rect(50, y_pos, 700, 80)
+                        if group_rect.collidepoint(pos):
+                            upgrade_key = (name, tier)
+                            if upgrade_key in ARMOR_UPGRADES:
+                                success, msg = self.inv_mgr.craft_armor(name, tier)
+                                self.message = msg
+                                self.message_timer = 60
+                                # Обновляем список
+                                self.inventory_armor = self.inv_mgr.armor
+                                self.equipped_armor = self.inv_mgr.equipped_armor
+                                return
+                        y_pos += 100
         elif self.game_state == "SHOP":
             # Если открыто окно апгрейда - обрабатываем только кнопки окна
             if self.selected_upgrade_card is not None:
@@ -631,6 +663,11 @@ class Game:
         if is_boss:
             # Показать выбор награды после босса
             self.reward_cards = self.event_mgr.generate_reward_cards(True)
+            # Даём легендарную броню 4 тира
+            from modules.entities import Armor
+            boss_armor = Armor("Легендарная броня", 4, 5, "legendary", "armor_legendary_4.png", None)
+            self.inv_mgr.armor.append(boss_armor)
+            self.message = "Получена легендарная броня!"
             self.game_state = "REWARD"
         else:
             # Обычный враг - показать выбор активностей

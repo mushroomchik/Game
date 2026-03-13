@@ -1,6 +1,7 @@
 """Инвентарь, магазин, апгрейды"""
-from modules.config import UPGRADE_COSTS, SELL_PRICE_MULTIPLIER, CARD_UPGRADES, TIER_3_CARDS
+from modules.config import UPGRADE_COSTS, SELL_PRICE_MULTIPLIER, CARD_UPGRADES, TIER_3_CARDS, ARMOR_UPGRADES
 from modules.cards import AbilityCard
+from modules.entities import Armor
 
 class InventoryManager:
     def __init__(self):
@@ -54,3 +55,38 @@ class InventoryManager:
         if self.selected_cards:
             return self.selected_cards[:max_cards]
         return self.cards[:max_cards]
+
+    def craft_armor(self, armor_name: str, armor_tier: int) -> tuple[bool, str]:
+        """Объединение 3 одинаковых броней в улучшенную версию"""
+        # Ищем 3 одинаковые брони
+        matching_armor = [a for a in self.armor if a.name == armor_name and a.tier == armor_tier]
+        
+        if len(matching_armor) < 3:
+            return False, "Нужно 3 одинаковые брони"
+        
+        upgrade_key = (armor_name, armor_tier)
+        if upgrade_key not in ARMOR_UPGRADES:
+            return False, "Нет рецепта для этой брони"
+        
+        upgrade_info = ARMOR_UPGRADES[upgrade_key]
+        upgrade_name, upgrade_tier, upgrade_defense, upgrade_type, upgrade_element, upgrade_asset = upgrade_info
+        
+        # Удаляем 3 брони
+        removed_count = 0
+        new_armor_list = []
+        for a in self.armor:
+            if a.name == armor_name and a.tier == armor_tier and removed_count < 3:
+                removed_count += 1
+                continue
+            new_armor_list.append(a)
+        self.armor = new_armor_list
+        
+        # Добавляем новую броню
+        new_armor = Armor(upgrade_name, upgrade_tier, upgrade_defense, upgrade_type, upgrade_asset, upgrade_element)
+        self.armor.append(new_armor)
+        
+        # Если экипирована была одна из удаленных - экипируем новую
+        if self.equipped_armor and self.equipped_armor.name == armor_name and self.equipped_armor.tier == armor_tier:
+            self.equipped_armor = new_armor
+        
+        return True, f"Создано: {upgrade_name}!"

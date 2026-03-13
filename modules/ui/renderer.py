@@ -176,11 +176,13 @@ class GameRenderer:
         # Вкладки
         cards_tab_rect = pygame.Rect(50, 120, 150, 40)
         armor_tab_rect = pygame.Rect(210, 120, 150, 40)
+        smith_tab_rect = pygame.Rect(370, 120, 150, 40)
 
         # Фон вкладок
         for rect, tab_name, is_active in [
             (cards_tab_rect, "Карты", current_tab == "cards"),
-            (armor_tab_rect, "Броня", current_tab == "armor")
+            (armor_tab_rect, "Броня", current_tab == "armor"),
+            (smith_tab_rect, "Кузница", current_tab == "smith")
         ]:
             color = GREEN if is_active else DARK_GRAY
             pygame.draw.rect(screen, color, rect, border_radius=8)
@@ -219,7 +221,7 @@ class GameRenderer:
                 pygame.draw.rect(screen, DARK_GRAY, (SCREEN_WIDTH - 30, 180, 15, scroll_bar_height), border_radius=5)
                 pygame.draw.rect(screen, GRAY, (SCREEN_WIDTH - 30, 180 + scroll_pos, 15, scroll_thumb_height), border_radius=5)
 
-        else:
+        elif current_tab == "armor":
             # Броня со скроллом (увеличенные иконки)
             armor_cols = 6  # Меньше колонок из-за большего размера
             armor_start = scroll
@@ -250,6 +252,49 @@ class GameRenderer:
                 scroll_pos = int(scroll * (scroll_bar_height - scroll_thumb_height) / max(max_scroll, 1))
                 pygame.draw.rect(screen, DARK_GRAY, (SCREEN_WIDTH - 30, 180, 15, scroll_bar_height), border_radius=5)
                 pygame.draw.rect(screen, GRAY, (SCREEN_WIDTH - 30, 180 + scroll_pos, 15, scroll_thumb_height), border_radius=5)
+
+        elif current_tab == "smith":
+            # Кузница - объединение 3 одинаковых брони в улучшенную
+            from modules.config import ARMOR_UPGRADES
+
+            smith_title = _ensure_fonts()['small'].render("Выберите 3 одинаковые брони для улучшения:", True, WHITE)
+            screen.blit(smith_title, (50, 180))
+
+            # Группируем брони по имени
+            armor_groups = {}
+            for armor in inventory_armor:
+                key = (armor.name, armor.tier)
+                if key not in armor_groups:
+                    armor_groups[key] = []
+                armor_groups[key].append(armor)
+
+            # Показываем группы с 3+ бронями
+            y_pos = 220
+            for (name, tier), armors in armor_groups.items():
+                if len(armors) >= 3:
+                    # Проверяем есть ли апгрейд
+                    upgrade_key = (name, tier)
+                    can_upgrade = upgrade_key in ARMOR_UPGRADES
+
+                    # Рисуем группу
+                    group_rect = pygame.Rect(50, y_pos, 700, 80)
+                    color = GREEN if can_upgrade else DARK_GRAY
+                    pygame.draw.rect(screen, color, group_rect, border_radius=8)
+                    pygame.draw.rect(screen, GOLD if can_upgrade else GRAY, group_rect, 2, border_radius=8)
+
+                    group_text = _ensure_fonts()['medium'].render(f"{name} x{len(armors)}", True, WHITE)
+                    screen.blit(group_text, (70, y_pos + 25))
+
+                    if can_upgrade:
+                        upgrade_info = ARMOR_UPGRADES[upgrade_key]
+                        upgrade_text = _ensure_fonts()['small'].render(f"-> {upgrade_info[0]}", True, GREEN)
+                        screen.blit(upgrade_text, (400, y_pos + 30))
+
+                    y_pos += 100
+
+            if y_pos == 220:
+                no_upgrades_text = _ensure_fonts()['small'].render("Нет брони для улучшения (нужно 3 одинаковые)", True, LIGHT_GRAY)
+                screen.blit(no_upgrades_text, (50, 220))
 
         # Тултип брони
         if armor_tooltip_visible and armor_tooltip_armor:
