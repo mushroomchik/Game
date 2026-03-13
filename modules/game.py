@@ -25,7 +25,7 @@ class Game:
         FONTS = get_fonts()
 
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption("Dicey Dungeons - Map Edition")
+        pygame.display.set_caption("Knight with Dice")
         self.clock = pygame.time.Clock()
         self.running = True
 
@@ -123,12 +123,18 @@ class Game:
         self.map_nodes = self.map_mgr.nodes
         self.map_btn = Button(1050, 20, 130, 40, "Карта", BLUE)
         self.to_map_btn = Button(SCREEN_WIDTH // 2 - 80, 700, 160, 50, "На карту", BLUE)
+        self.fight_btn = Button(SCREEN_WIDTH // 2 - 100, 720, 200, 60, "В БОЙ!", RED)
+        self.end_turn_btn = Button(*UI_POSITIONS['end_turn_btn'], "Завершить ход", BLUE)
+        self.test_enemy_btn = Button(SCREEN_WIDTH - 150, 600, 130, 40, "[TEST] Враг", BLUE)
+        self.kill_enemy_btn = Button(SCREEN_WIDTH - 150, 650, 130, 40, "[TEST] Убить", RED)
         self.turn = "PLAYER"
         self.enemy_info_visible = False
         self.enemy_info_pos = (0, 0)
         self.heal_flash_timer = 0
         self.hero_damage_flash_timer = 0
         self.enemy_damage_flash_timer = 0
+        # Сброс TurnManager
+        self.turn_mgr = TurnManager()
         self.inv_mgr.gold = STARTING_GOLD
         self.player_hp = self.player_max_hp = PLAYER_MAX_HP
         self.player_block = 0
@@ -573,6 +579,9 @@ class Game:
         self.inventory_cards = self.inv_mgr.cards
         self.selected_upgrade_card = None
         self.upgrade_flash_timer = 0
+        # Сбрасываем состояние карт
+        for card in self.inventory_cards:
+            card.hovered = False
         self.shop_buttons = {
             'next_floor': Button(SCREEN_WIDTH // 2 - 80, 700, 160, 50, "На карту", BLUE),
             'upgrade': Button(450, 700, 120, 40, "Улучшить", GREEN),
@@ -589,11 +598,14 @@ class Game:
         
         self.inv_mgr.gold += gold_gained
         self.message = f"Победа! +{gold_gained} золота"
+        # Сбрасываем блок между боями
+        self.player_block = 0
         # Сброс всех карт для нового боя
         for card in self.inv_mgr.cards:
             card.used_this_turn = False
             card.assigned_dice = []
             card.selected_for_battle = False
+            card.hovered = False
         # Скрыть тултип карты
         self.card_tooltip_visible = False
         self.card_tooltip_card = None
@@ -648,17 +660,15 @@ class Game:
             self.inventory_cards = list(self.inv_mgr.cards)  # Копия списка
             self.card_tooltip_visible = False
             self.card_tooltip_card = None
-            # Сбрасываем выбор карт для боя
+            # Сбрасываем выбор и состояние карт для боя
             for card in self.inventory_cards:
                 card.selected_for_battle = False
+                card.hovered = False
             self.game_state = "PRE_BATTLE"
         elif node_type == "shop":
             self.shop_cards = self.event_mgr.generate_shop_cards()
             self._init_shop_state()
             self.game_state = "SHOP"
-        elif node_type == "shop":
-            self.shop_cards = self.event_mgr.generate_shop_cards()
-            self._init_shop_state()
         # ... остальные типы
 
     def _init_test_enemies(self):
@@ -846,6 +856,9 @@ class Game:
         elif self.game_state == "PRE_BATTLE":
             # Обновляем данные
             self.inventory_cards = list(self.inv_mgr.cards)
+            # Сбрасываем hovered для всех карт
+            for card in self.inventory_cards:
+                card.hovered = False
             selected = [c for c in self.inventory_cards if c.selected_for_battle]
             GameRenderer.draw_pre_battle(
                 self.screen,

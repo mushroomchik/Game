@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dicey Dungeons — Точка входа"""
+"""Knight with Dice — Точка входа"""
 import sys
 import pygame
 pygame.init()
