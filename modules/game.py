@@ -178,6 +178,13 @@ class Game:
                 elif self.game_state == "MAP" and self.test_enemy_menu_visible:
                     max_scroll = max(0, len(self.test_enemies) - 8)
                     self.test_enemy_scroll = max(0, min(self.test_enemy_scroll - event.y, max_scroll))
+                elif self.game_state == "SHOP":
+                    # Скролл инвентаря в магазине
+                    cards_per_row = 6
+                    visible_rows = 2
+                    visible_cards = cards_per_row * visible_rows
+                    max_scroll = max(0, len(self.inventory_cards) - visible_cards)
+                    self.inventory_scroll = max(0, min(self.inventory_scroll - event.y, max_scroll))
             elif event.type == pygame.KEYDOWN:
                 if self.game_state == "MAP" and self.test_enemy_menu_visible:
                     if event.key == pygame.K_DOWN or event.key == pygame.K_s:
@@ -189,25 +196,40 @@ class Game:
                 if self.dragging_scroll:
                     self.dragging_scroll = False
             elif event.type == pygame.MOUSEMOTION:
-                if self.dragging_scroll and self.game_state == "INVENTORY":
-                    # Перетаскивание ползунка
+                if self.dragging_scroll:
                     pos = pygame.mouse.get_pos()
                     scroll_bar_x = SCREEN_WIDTH - 30
-                    scroll_bar_y = 180
-                    if self.inventory_tab == "cards":
-                        scroll_bar_height = 150
-                        max_items = len(self.inventory_cards)
-                        visible = 10
-                    else:
-                        scroll_bar_height = 320
-                        max_items = len(self.inventory_armor)
-                        visible = 16
                     
-                    if max_items > visible:
-                        max_scroll = max_items - visible
-                        relative_y = (pos[1] - scroll_bar_y) / scroll_bar_height
-                        self.inventory_scroll = int(relative_y * max_scroll)
-                        self.inventory_scroll = max(0, min(self.inventory_scroll, max_scroll))
+                    if self.game_state == "INVENTORY":
+                        scroll_bar_y = 180
+                        if self.inventory_tab == "cards":
+                            scroll_bar_height = 150
+                            max_items = len(self.inventory_cards)
+                            visible = 10
+                        else:
+                            scroll_bar_height = 320
+                            max_items = len(self.inventory_armor)
+                            visible = 16
+                        
+                        if max_items > visible:
+                            max_scroll = max_items - visible
+                            relative_y = (pos[1] - scroll_bar_y) / scroll_bar_height
+                            self.inventory_scroll = int(relative_y * max_scroll)
+                            self.inventory_scroll = max(0, min(self.inventory_scroll, max_scroll))
+                    
+                    elif self.game_state == "SHOP":
+                        scroll_bar_y = 460
+                        scroll_bar_height = 150
+                        cards_per_row = 6
+                        visible_rows = 2
+                        visible = cards_per_row * visible_rows
+                        max_items = len(self.inventory_cards)
+                        
+                        if max_items > visible:
+                            max_scroll = max_items - visible
+                            relative_y = (pos[1] - scroll_bar_y) / scroll_bar_height
+                            self.inventory_scroll = int(relative_y * max_scroll)
+                            self.inventory_scroll = max(0, min(self.inventory_scroll, max_scroll))
             elif event.type == pygame.USEREVENT:
                 self.turn_mgr.on_enemy_turn_event(self._enemy_turn)
 
@@ -360,8 +382,10 @@ class Game:
         elif self.game_state == "SHOP":
             # Если открыто окно апгрейда - обрабатываем только кнопки окна
             if self.selected_upgrade_card is not None:
-                # Кнопка "Улучшить"
-                if self.shop_buttons.get('upgrade') and self.shop_buttons['upgrade'].is_clicked(pos):
+                selected_card = self.inventory_cards[self.selected_upgrade_card]
+                
+                # Кнопка "Улучшить" - только для карт ниже 3 тира
+                if selected_card.tier < 3 and self.shop_buttons.get('upgrade') and self.shop_buttons['upgrade'].is_clicked(pos):
                     success, msg = self.inv_mgr.upgrade_card(self.selected_upgrade_card)
                     self.message = msg
                     self.message_timer = 60
@@ -388,7 +412,11 @@ class Game:
                     return
                 # Клик вне окна - просто закрываем (без действия)
                 # Проверяем, что клик вне зоны окна апгрейда
-                upgrade_box_w, upgrade_box_h = 400, 150
+                card = self.inventory_cards[self.selected_upgrade_card]
+                if card.tier >= 3:
+                    upgrade_box_w, upgrade_box_h = 400, 120
+                else:
+                    upgrade_box_w, upgrade_box_h = 400, 150
                 upgrade_box_x = (SCREEN_WIDTH - upgrade_box_w) // 2
                 upgrade_box_y = (SCREEN_HEIGHT - upgrade_box_h) // 2
                 upgrade_rect = pygame.Rect(upgrade_box_x, upgrade_box_y, upgrade_box_w, upgrade_box_h)
@@ -405,8 +433,8 @@ class Game:
                 return  # Блокируем все остальные клики при открытом окне
 
             # Обработка кликов в магазине (когда окно апгрейда закрыто)
-            # Кнопка "На карту"
-            if self.to_map_btn.is_clicked(pos) or (self.shop_buttons.get('next_floor') and self.shop_buttons['next_floor'].is_clicked(pos)):
+            # Кнопка "На карту" (только map_btn сверху)
+            if self.map_btn.is_clicked(pos):
                 self.map_mgr.generate(self.floor)
                 self.map_nodes = self.map_mgr.nodes
                 self.next_enemy = self._create_enemy(self.floor)
@@ -428,10 +456,31 @@ class Game:
                         self.message_timer = 60
                     return
 
-            # Клик по карте в инвентаре - выбор для апгрейда
+            # Скролл в магазине
+            scroll_bar_x = SCREEN_WIDTH - 30
+            scroll_bar_y = 460
+            scroll_bar_height = 150
+            cards_per_row = 6
+            visible_rows = 2
+            visible_cards = cards_per_row * visible_rows
+            if len(self.inventory_cards) > visible_cards:
+                scroll_rect = pygame.Rect(scroll_bar_x, scroll_bar_y, 15, scroll_bar_height)
+                if scroll_rect.collidepoint(pos):
+                    max_scroll = len(self.inventory_cards) - visible_cards
+                    relative_y = (pos[1] - scroll_bar_y) / scroll_bar_height
+                    self.inventory_scroll = int(relative_y * max_scroll)
+                    self.inventory_scroll = max(0, min(self.inventory_scroll, max_scroll))
+                    self.dragging_scroll = True
+                    return
+
+            # Клик по карте в инвентаре - выбор для апгрейда/продажи
             for i, card in enumerate(self.inventory_cards):
                 if card.is_clicked(pos):
-                    self.selected_upgrade_card = i
+                    # Для карт 3 и 4 тира - открываем окно продажи
+                    if card.tier >= 3:
+                        self.selected_upgrade_card = i
+                    else:
+                        self.selected_upgrade_card = i
                     return
             return
         elif self.game_state == "CAMPFIRE":
@@ -667,7 +716,12 @@ class Game:
             from modules.entities import Armor
             boss_armor = Armor("Легендарная броня", 4, 5, "legendary", "armor_legendary_4.png", None)
             self.inv_mgr.armor.append(boss_armor)
-            self.message = "Получена легендарная броня!"
+            # Увеличиваем max HP и восстанавливаем здоровье
+            self.player_max_hp += 15
+            self.player_hp = self.player_max_hp
+            self.player_health = HealthBar(UI_POSITIONS['hero_hp'][0], UI_POSITIONS['hero_hp'][1],
+                                           200, 30, self.player_max_hp, GREEN)
+            self.message = "Получена легендарная броня! Max HP +15"
             self.game_state = "REWARD"
         else:
             # Обычный враг - показать выбор активностей
@@ -970,23 +1024,24 @@ class Game:
                 self.selected_upgrade_card,
                 self.upgrade_flash_timer,
                 self.shop_buttons,
-                self.message
+                self.message,
+                self.inventory_scroll,
+                self.map_btn
             )
-            self.to_map_btn.draw(self.screen)
+
+            # УБРАНО: нижняя кнопка to_map_btn - теперь только map_btn сверху
 
         elif self.game_state == "TREASURE":
             GameRenderer.draw_treasure(
                 self.screen,
                 self.treasure_items
             )
-            self.to_map_btn.draw(self.screen)
 
         elif self.game_state == "CAMPFIRE":
             GameRenderer.draw_campfire(
                 self.screen,
                 self.message
             )
-            self.to_map_btn.draw(self.screen)
 
         elif self.game_state == "EVENT_CHOICE":
             GameRenderer.draw_event_choice(
