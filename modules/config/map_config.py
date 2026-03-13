@@ -52,7 +52,7 @@ LOCATIONS = {
             ("Огненный дух", 28, 6, 9, "fire_spirit", "fire"),
             ("Магмовый зверь", 32, 7, 10, "magma_beast", "fire"),
             ("Лавовый голем", 38, 8, 12, "lava_golem", "fire"),
-            ("Дракончик", 30, 9, 14, "fire_dragon", "fire"),
+            ("Дракончик", 30, 9, 14, "dragon_baby", "fire"),
         ],
         "boss": ("Древний дракон", 120, 14, 20, "fire_dragon", "fire"),
     },
