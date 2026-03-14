@@ -294,6 +294,28 @@ class GameRenderer:
 
                     y_pos += 100
 
+            # Специальный рецепт: Броня тьмы
+            has_fire_plus = any(a.name == "Огненная броня+" and a.tier == 3 for a in inventory_armor)
+            has_water_plus = any(a.name == "Водяная броня+" and a.tier == 3 for a in inventory_armor)
+            has_ground_plus = any(a.name == "Земляная броня+" and a.tier == 3 for a in inventory_armor)
+            
+            if has_fire_plus and has_water_plus and has_ground_plus:
+                dark_armor_key = ("Броня тьмы", 5)
+                group_rect = pygame.Rect(50, y_pos, 700, 80)
+                pygame.draw.rect(screen, (60, 0, 90), group_rect, border_radius=8)  # Тёмно-фиолетовый
+                pygame.draw.rect(screen, (120, 0, 180), group_rect, 2, border_radius=8)
+                
+                group_text = _ensure_fonts()['medium'].render("Броня тьмы", True, (200, 100, 255))
+                screen.blit(group_text, (70, y_pos + 25))
+                
+                recipe_text = _ensure_fonts()['small'].render("Огненная+ + Водяная+ + Земляная+", True, LIGHT_GRAY)
+                screen.blit(recipe_text, (70, y_pos + 50))
+                
+                arrow_text = _ensure_fonts()['small'].render("-> Броня тьмы (T5)", True, (200, 100, 255))
+                screen.blit(arrow_text, (400, y_pos + 30))
+                
+                y_pos += 100
+            
             if y_pos == 220:
                 no_upgrades_text = _ensure_fonts()['small'].render("Нет брони для улучшения (нужно 3 одинаковые)", True, LIGHT_GRAY)
                 screen.blit(no_upgrades_text, (50, 220))
@@ -788,13 +810,19 @@ class GameRenderer:
         item_width = 200  # Ширина как у карты + отступ
         total_width = item_count * item_width
         start_x = (SCREEN_WIDTH - total_width) // 2
+        
+        hovered_card = None
+        
         for i, item in enumerate(treasure_items):
             x = start_x + i * item_width
             if item["type"] == "card":
                 from modules.cards import AbilityCard
                 card = AbilityCard(*item["data"])
                 card.set_position(x, 150)
-                card.draw(screen, force_available=True)
+                card.check_hover(pygame.mouse.get_pos())
+                if card.hovered:
+                    hovered_card = card
+                card.draw(screen, force_available=True, draw_tooltip=False)
             elif item["type"] == "armor":
                 from modules.entities import Armor
                 d = item["data"]
@@ -806,6 +834,10 @@ class GameRenderer:
                 card_rect = pygame.Rect(x, 150, 150, 190)
                 if card_rect.collidepoint(pygame.mouse.get_pos()):
                     pygame.draw.rect(screen, WHITE, card_rect, 3)
+
+        # Отрисовка тултипа для наведенной карты (поверх всех)
+        if hovered_card:
+            hovered_card._draw_tooltip(screen)
 
         # Подсказка
         msg = _ensure_fonts()['small'].render("Кликните чтобы забрать", True, WHITE)

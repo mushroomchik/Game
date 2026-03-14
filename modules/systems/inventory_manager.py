@@ -58,7 +58,41 @@ class InventoryManager:
 
     def craft_armor(self, armor_name: str, armor_tier: int) -> tuple[bool, str]:
         """Объединение 3 одинаковых броней в улучшенную версию"""
-        # Ищем 3 одинаковые брони
+        
+        # Специальный рецепт: Броня тьмы из Огненная+ + Водяная+ + Земляная+
+        if armor_name == "Броня тьмы" and armor_tier == 5:
+            required = ["Огненная броня+", "Водяная броня+", "Земляная броня+"]
+            found = []
+            for req_name in required:
+                for a in self.armor:
+                    if a.name == req_name and a.tier == 3:
+                        found.append(req_name)
+                        break
+            
+            if len(found) < 3:
+                return False, "Нужно: Огненная+, Водяная+, Земляная+"
+            
+            # Удаляем эти 3 брони
+            new_armor_list = []
+            removed = set()
+            for a in self.armor:
+                if a.name in required and a.name not in removed:
+                    removed.add(a.name)
+                    continue
+                new_armor_list.append(a)
+            self.armor = new_armor_list
+            
+            # Добавляем броню тьмы
+            new_armor = Armor("Броня тьмы", 5, 8, "elemental", "armor_dark_5.png", "dark")
+            self.armor.append(new_armor)
+            
+            # Если экипирована была одна из удаленных - экипируем новую
+            if self.equipped_armor and self.equipped_armor.name in required:
+                self.equipped_armor = new_armor
+            
+            return True, "Создано: Броня тьмы!"
+        
+        # Обычный крафт - ищем 3 одинаковые брони
         matching_armor = [a for a in self.armor if a.name == armor_name and a.tier == armor_tier]
         
         if len(matching_armor) < 3:

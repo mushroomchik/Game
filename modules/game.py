@@ -43,6 +43,7 @@ class Game:
         self.game_state = "MENU"
         self.message, self.message_timer = "", 0
         self._init_ui()
+        self._init_test_enemies()  # Init test enemies
 
     def _init_ui(self):
         """Инициализация UI"""
@@ -383,8 +384,8 @@ class Game:
                     self.cheat_menu_visible = False
                     self.cheat_dragging_scroll = False
             # Обработка выбора врага из тестового меню
-            elif self.test_enemy_menu_visible:
-                menu_x, menu_y = SCREEN_WIDTH - 290, 540
+            if self.test_enemy_menu_visible:
+                menu_x, menu_y = SCREEN_WIDTH - 290, 150  # Перенесено выше, чтобы не перекрывать кнопку
                 menu_w, item_h = 270, 35
                 visible_count = 8  # Сколько врагов видно
                 max_scroll = max(0, len(self.test_enemies) - visible_count)
@@ -414,10 +415,20 @@ class Game:
                 self.inv_mgr.selected_cards = [c for c in self.inventory_cards if c.selected_for_battle][:5]
                 self._start_battle()
             else:
-                # Клик по карте - переключить выбор
+                # Клик по карте - переключить выбор (с ограничением макс. 5 карт)
                 for card in self.inventory_cards:
                     if card.is_clicked(pos):
-                        card.selected_for_battle = not card.selected_for_battle
+                        if card.selected_for_battle:
+                            # Если карта уже выбрана - снимаем выбор
+                            card.selected_for_battle = False
+                        else:
+                            # Если карта не выбрана - проверяем лимит в 5 карт
+                            selected_count = sum(1 for c in self.inventory_cards if c.selected_for_battle)
+                            if selected_count < 5:
+                                card.selected_for_battle = True
+                            else:
+                                self.message = "Максимум 5 карт!"
+                                self.message_timer = 60
                         break
         elif self.game_state == "INVENTORY":
             if self.map_btn.is_clicked(pos):
@@ -511,6 +522,21 @@ class Game:
                                 self.equipped_armor = self.inv_mgr.equipped_armor
                                 return
                         y_pos += 100
+                
+                # Специальный рецепт: Броня тьмы
+                has_fire_plus = any(a.name == "Огненная броня+" and a.tier == 3 for a in self.inventory_armor)
+                has_water_plus = any(a.name == "Водяная броня+" and a.tier == 3 for a in self.inventory_armor)
+                has_ground_plus = any(a.name == "Земляная броня+" and a.tier == 3 for a in self.inventory_armor)
+                
+                if has_fire_plus and has_water_plus and has_ground_plus:
+                    dark_armor_rect = pygame.Rect(50, y_pos, 700, 80)
+                    if dark_armor_rect.collidepoint(pos):
+                        success, msg = self.inv_mgr.craft_armor("Броня тьмы", 5)
+                        self.message = msg
+                        self.message_timer = 60
+                        self.inventory_armor = self.inv_mgr.armor
+                        self.equipped_armor = self.inv_mgr.equipped_armor
+                        return
         elif self.game_state == "SHOP":
             # Если открыто окно апгрейда - обрабатываем только кнопки окна
             if self.selected_upgrade_card is not None:
@@ -862,7 +888,9 @@ class Game:
 
     def _enemy_turn(self):
         """Ход врага"""
-        if not self.current_enemy or self.current_enemy.dead: return
+        if not self.current_enemy or self.current_enemy.dead:
+            self.turn_mgr.end_enemy_turn()
+            return
         battle_mgr = BattleManager({'hp': self.player_hp, 'max_hp': self.player_max_hp, 'block': self.player_block},
                                    self.current_enemy, self.dice_list, self.battle_hand, self.particles)
         dmg, special = battle_mgr.enemy_attack(self.inv_mgr.equipped_armor)
@@ -934,6 +962,9 @@ class Game:
     def _start_battle(self):
         """Начало боя"""
         self.game_state = "BATTLE"
+        # Сброс TurnManager в начальное состояние
+        self.turn = "PLAYER"
+        self.turn_mgr = TurnManager()
         # Используем врага, который был показан на карте
         self.current_enemy = self.next_enemy
         self.enemy_health = HealthBar(UI_POSITIONS['enemy_hp'][0], UI_POSITIONS['enemy_hp'][1],
@@ -1064,7 +1095,7 @@ class Game:
             # Тестовая кнопка и меню выбора врага
             self.test_enemy_btn.draw(self.screen)
             if self.test_enemy_menu_visible:
-                menu_x, menu_y = SCREEN_WIDTH - 290, 540
+                menu_x, menu_y = SCREEN_WIDTH - 290, 150
                 item_h = 35
                 visible_count = 8
                 menu_h = visible_count * item_h + 10

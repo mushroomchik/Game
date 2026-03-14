@@ -35,7 +35,10 @@ ARMOR_TIERS = {
     ],
     3: {"name": "Усиленная броня", "defense": 4, "type": "metal", "asset": "armor_metal_3.png"},
     4: {"name": "Легендарная броня", "defense": 5, "type": "legendary", "asset": "armor_legendary_4.png"},
-    5: {"name": "Божественная броня", "defense": 10, "type": "elemental", "element": "light", "asset": "divine_armor_5.png"},
+    5: [
+        {"name": "Божественная броня", "defense": 10, "type": "elemental", "element": "light", "asset": "divine_armor_5.png"},
+        {"name": "Броня тьмы", "defense": 8, "type": "elemental", "element": "dark", "asset": "armor_dark_5.png"},
+    ],
 }
 
 # Улучшенные версии брони (для крафта из 3 одинаковых)
