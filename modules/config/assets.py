@@ -33,7 +33,12 @@ ARMOR_TIERS = {
         {"name": "Водяная броня", "defense": 1, "type": "elemental", "element": "water", "asset": "armor_elemental_2_water.png"},
         {"name": "Земляная броня", "defense": 1, "type": "elemental", "element": "ground", "asset": "armor_elemental_2_grass.png"},
     ],
-    3: {"name": "Усиленная броня", "defense": 4, "type": "metal", "asset": "armor_metal_3.png"},
+    3: [
+        {"name": "Усиленная броня", "defense": 4, "type": "metal", "asset": "armor_metal_3.png"},
+        {"name": "Огненная броня+", "defense": 2, "type": "elemental", "element": "fire", "asset": "armor_elemental_2_fire.png"},
+        {"name": "Водяная броня+", "defense": 2, "type": "elemental", "element": "water", "asset": "armor_elemental_2_water.png"},
+        {"name": "Земляная броня+", "defense": 2, "type": "elemental", "element": "ground", "asset": "armor_elemental_2_grass.png"},
+    ],
     4: {"name": "Легендарная броня", "defense": 5, "type": "legendary", "asset": "armor_legendary_4.png"},
     5: [
         {"name": "Божественная броня", "defense": 10, "type": "elemental", "element": "light", "asset": "divine_armor_5.png"},
@@ -50,6 +55,9 @@ ARMOR_UPGRADES = {
     ("Земляная броня", 2): ("Земляная броня+", 3, 2, "elemental", "ground", "armor_elemental_2_grass.png"),
     ("Усиленная броня", 3): ("Усиленная броня+", 3, 8, "metal", None, "armor_metal_3.png"),
     ("Усиленная броня+", 3): ("Легендарная броня", 4, 5, "legendary", None, "armor_legendary_4.png"),
+    ("Огненная броня+", 3): ("Броня тьмы", 5, 8, "elemental", "dark", "armor_dark_5.png"),
+    ("Водяная броня+", 3): ("Броня тьмы", 5, 8, "elemental", "dark", "armor_dark_5.png"),
+    ("Земляная броня+", 3): ("Броня тьмы", 5, 8, "elemental", "dark", "armor_dark_5.png"),
     ("Легендарная броня", 4): ("Божественная броня", 5, 10, "elemental", "light", "divine_armor_5.png"),
 }
 

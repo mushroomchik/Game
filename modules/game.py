@@ -514,6 +514,18 @@ class Game:
                         if group_rect.collidepoint(pos):
                             upgrade_key = (name, tier)
                             if upgrade_key in ARMOR_UPGRADES:
+                                # Проверяем золото
+                                upgrade_tier = ARMOR_UPGRADES[upgrade_key][1]
+                                if upgrade_tier == 5:
+                                    cost = 100
+                                elif upgrade_tier == 4:
+                                    cost = 50
+                                else:
+                                    cost = 25
+                                if self.inv_mgr.gold < cost:
+                                    self.message = f"Нужно {cost}G!"
+                                    self.message_timer = 60
+                                    return
                                 success, msg = self.inv_mgr.craft_armor(name, tier)
                                 self.message = msg
                                 self.message_timer = 60

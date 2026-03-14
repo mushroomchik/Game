@@ -110,6 +110,18 @@ class InventoryManager:
         upgrade_info = ARMOR_UPGRADES[upgrade_key]
         upgrade_name, upgrade_tier, upgrade_defense, upgrade_type, upgrade_element, upgrade_asset = upgrade_info
         
+        # Определяем стоимость крафта
+        # T3 = 25G, T4 (легендарная) = 50G, T5 (божественная/тьма) = 100G
+        if upgrade_tier == 5:
+            craft_cost = 100
+        elif upgrade_tier == 4:
+            craft_cost = 50
+        else:
+            craft_cost = 25
+        
+        if self.gold < craft_cost:
+            return False, f"Нужно {craft_cost}G"
+        
         # Удаляем 3 брони
         removed_count = 0
         new_armor_list = []
@@ -127,5 +139,8 @@ class InventoryManager:
         # Если экипирована была одна из удаленных - экипируем новую
         if self.equipped_armor and self.equipped_armor.name == armor_name and self.equipped_armor.tier == armor_tier:
             self.equipped_armor = new_armor
+        
+        # Списываем золото
+        self.gold -= craft_cost
         
         return True, f"Создано: {upgrade_name}!"

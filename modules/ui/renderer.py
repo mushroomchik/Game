@@ -278,13 +278,26 @@ class GameRenderer:
                     upgrade_key = (name, tier)
                     can_upgrade = upgrade_key in ARMOR_UPGRADES
 
+                    # Определяем стоимость
+                    if can_upgrade:
+                        upgrade_tier = ARMOR_UPGRADES[upgrade_key][1]
+                        if upgrade_tier == 5:
+                            cost = 100
+                        elif upgrade_tier == 4:
+                            cost = 50
+                        else:
+                            cost = 25
+                        cost_text = f"({cost}G)"
+                    else:
+                        cost_text = ""
+
                     # Рисуем группу
                     group_rect = pygame.Rect(50, y_pos, 700, 80)
                     color = GREEN if can_upgrade else DARK_GRAY
                     pygame.draw.rect(screen, color, group_rect, border_radius=8)
                     pygame.draw.rect(screen, GOLD if can_upgrade else GRAY, group_rect, 2, border_radius=8)
 
-                    group_text = _ensure_fonts()['medium'].render(f"{name} x{len(armors)}", True, WHITE)
+                    group_text = _ensure_fonts()['medium'].render(f"{name} x{len(armors)} {cost_text}", True, WHITE)
                     screen.blit(group_text, (70, y_pos + 25))
 
                     if can_upgrade:
