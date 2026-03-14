@@ -94,6 +94,7 @@ class Game:
         self.test_enemy_menu_visible = False
         self.test_enemies = []  # Список всех врагов для тестирования
         self.test_enemy_scroll = 0  # Скролл в меню выбора врага
+        self.test_enemy_dragging_scroll = False  # Перетаскивание скроллбара врагов
         # Атрибуты для MENU
         self.max_floor = MAX_FLOOR
         self.gold = 0
@@ -184,19 +185,27 @@ class Game:
                     else:
                         max_scroll = max(0, len(self.inventory_armor) - 16)
                     self.inventory_scroll = max(0, min(self.inventory_scroll - event.y, max_scroll))
-                elif self.game_state == "MAP" and self.test_enemy_menu_visible:
-                    max_scroll = max(0, len(self.test_enemies) - 8)
-                    self.test_enemy_scroll = max(0, min(self.test_enemy_scroll - event.y, max_scroll))
-                elif self.game_state == "MAP" and self.cheat_menu_visible:
-                    # Скролл в меню чит-кнопки
-                    if self.cheat_tab == "cards":
-                        from modules.config import TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_3_CARDS, TIER_4_CARDS
-                        all_cards = TIER_0_CARDS + TIER_1_CARDS + TIER_2_CARDS + TIER_3_CARDS + TIER_4_CARDS
-                        max_scroll = max(0, len(all_cards) - 8)
-                    else:
-                        from modules.config import ARMOR_TIERS
-                        max_scroll = max(0, len(ARMOR_TIERS) - 8)
-                    self.cheat_scroll = max(0, min(self.cheat_scroll - event.y, max_scroll))
+                elif self.game_state == "MAP":
+                    # Скролл в меню чит-кнопки (карты/броня)
+                    if self.cheat_menu_visible:
+                        if self.cheat_tab == "cards":
+                            from modules.config import TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_3_CARDS, TIER_4_CARDS
+                            all_cards = TIER_0_CARDS + TIER_1_CARDS + TIER_2_CARDS + TIER_3_CARDS + TIER_4_CARDS
+                            max_scroll = max(0, len(all_cards) - 8)
+                        else:
+                            from modules.config import ARMOR_TIERS
+                            armor_count = 0
+                            for tier, data in ARMOR_TIERS.items():
+                                if isinstance(data, list):
+                                    armor_count += len(data)
+                                else:
+                                    armor_count += 1
+                            max_scroll = max(0, armor_count - 8)
+                        self.cheat_scroll = max(0, min(self.cheat_scroll - event.y, max_scroll))
+                    # Скролл в меню выбора врага
+                    if self.test_enemy_menu_visible:
+                        max_scroll = max(0, len(self.test_enemies) - 8)
+                        self.test_enemy_scroll = max(0, min(self.test_enemy_scroll - event.y, max_scroll))
                 elif self.game_state == "SHOP":
                     # Скролл инвентаря в магазине
                     cards_per_row = 6
@@ -216,8 +225,12 @@ class Game:
                     self.dragging_scroll = False
                 if self.cheat_dragging_scroll:
                     self.cheat_dragging_scroll = False
+                if hasattr(self, 'test_enemy_dragging_scroll') and self.test_enemy_dragging_scroll:
+                    self.test_enemy_dragging_scroll = False
             elif event.type == pygame.MOUSEMOTION:
                 pos = pygame.mouse.get_pos()
+                
+                # Скроллинг в инвентаре
                 if self.dragging_scroll:
                     scroll_bar_x = SCREEN_WIDTH - 30
                     
@@ -258,7 +271,6 @@ class Game:
                     menu_w = 270
                     content_y = menu_y + 35
                     scroll_bar_h = 150
-                    scroll_x = menu_x + menu_w - 15
                     
                     if self.cheat_tab == "cards":
                         from modules.config import TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_3_CARDS, TIER_4_CARDS
@@ -275,6 +287,20 @@ class Game:
                         relative_y = (pos[1] - content_y) / scroll_bar_h
                         self.cheat_scroll = int(relative_y * max_scroll)
                         self.cheat_scroll = max(0, min(self.cheat_scroll, max_scroll))
+                
+                # Перетаскивание скроллбара в меню врагов
+                elif self.game_state == "MAP" and hasattr(self, 'test_enemy_dragging_scroll') and self.test_enemy_dragging_scroll:
+                    menu_x, menu_y = SCREEN_WIDTH - 290, 150
+                    menu_w = 270
+                    item_h = 35
+                    visible_count = 8
+                    scroll_bar_h = visible_count * item_h
+                    
+                    max_scroll = max(0, len(self.test_enemies) - visible_count)
+                    if max_scroll > 0:
+                        relative_y = (pos[1] - menu_y) / scroll_bar_h
+                        self.test_enemy_scroll = int(relative_y * max_scroll)
+                        self.test_enemy_scroll = max(0, min(self.test_enemy_scroll, max_scroll))
             elif event.type == pygame.USEREVENT:
                 self.turn_mgr.on_enemy_turn_event(self._enemy_turn)
 
@@ -290,19 +316,51 @@ class Game:
             if self.inventory_btn.is_clicked(pos):
                 self.game_state = "INVENTORY"
             elif hasattr(self, 'fight_from_map_btn') and self.fight_from_map_btn.is_clicked(pos):
-                # Клик по кнопке "В бой" - переход к выбору карт
                 self._visit_location(self.map_mgr.node.type)
-            elif self.test_enemy_btn.is_clicked(pos):
-                self.test_enemy_menu_visible = not self.test_enemy_menu_visible
-                self.test_enemy_scroll = 0
-            elif self.cheat_btn.is_clicked(pos):
-                self.cheat_menu_visible = not self.cheat_menu_visible
-                self.cheat_scroll = 0
-                self.cheat_menu_just_opened = True  # Блокируем мгновенный выбор
-            # Обработка меню чит-кнопки
+            
+            # Обработка меню врагов (с приоритетом скроллбара)
+            if self.test_enemy_menu_visible:
+                menu_x, menu_y = SCREEN_WIDTH - 290, 150
+                menu_w, item_h = 270, 35
+                visible_count = 8
+                max_scroll = max(0, len(self.test_enemies) - visible_count)
+                
+                # Скроллбар имеет приоритет
+                if len(self.test_enemies) > visible_count:
+                    scroll_x = menu_x + menu_w - 15
+                    scroll_rect = pygame.Rect(scroll_x, menu_y, 8, visible_count * item_h)
+                    if scroll_rect.collidepoint(pos):
+                        self.test_enemy_dragging_scroll = True
+                        relative_y = (pos[1] - menu_y) / (visible_count * item_h)
+                        self.test_enemy_scroll = int(relative_y * max_scroll)
+                        self.test_enemy_scroll = max(0, min(self.test_enemy_scroll, max_scroll))
+                        return
+                
+                # Клик по врагам
+                for i in range(self.test_enemy_scroll, min(self.test_enemy_scroll + visible_count, len(self.test_enemies))):
+                    enemy = self.test_enemies[i]
+                    btn_rect = pygame.Rect(menu_x, menu_y + (i - self.test_enemy_scroll) * item_h, menu_w, item_h)
+                    if btn_rect.collidepoint(pos):
+                        self.next_enemy = Enemy(
+                            name=enemy["name"], hp=enemy["hp"], damage_range=enemy["dmg"],
+                            image_path=f"assets/images/{enemy['icon']}.png",
+                            icon_type=enemy["icon"], enemy_type=enemy["enemy_type"],
+                            damage_type=enemy["dmg_type"]
+                        )
+                        self.test_enemy_menu_visible = False
+                        return
+                
+                # Закрыть меню если клик вне его
+                menu_rect = pygame.Rect(menu_x, menu_y, 270, visible_count * item_h + 10)
+                if not menu_rect.collidepoint(pos) and not self.test_enemy_btn.is_clicked(pos):
+                    self.test_enemy_menu_visible = False
+                return
+            
+            # Обработка меню читов (с приоритетом скроллбара)
             if self.cheat_menu_visible:
                 menu_x, menu_y = SCREEN_WIDTH - 290, 440
                 menu_w, menu_h = 270, 300
+                content_y = menu_y + 35
                 
                 # Вкладки
                 cards_tab_rect = pygame.Rect(menu_x, menu_y, 135, 30)
@@ -311,11 +369,99 @@ class Game:
                 if cards_tab_rect.collidepoint(pos):
                     self.cheat_tab = "cards"
                     self.cheat_scroll = 0
+                    return
                 elif armor_tab_rect.collidepoint(pos):
                     self.cheat_tab = "armor"
                     self.cheat_scroll = 0
+                    return
                 
-                # Отрисовка вкладок (в обработке ниже)
+                # Получаем список
+                if self.cheat_tab == "cards":
+                    from modules.config import TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_3_CARDS, TIER_4_CARDS
+                    all_cards = TIER_0_CARDS + TIER_1_CARDS + TIER_2_CARDS + TIER_3_CARDS + TIER_4_CARDS
+                    items = [(c[0] + f" (T{c[9]})", c) for c in all_cards]
+                else:
+                    from modules.config import ARMOR_TIERS
+                    all_armor = []
+                    for tier, armor_data in ARMOR_TIERS.items():
+                        if isinstance(armor_data, list):
+                            for a in armor_data:
+                                all_armor.append((a["name"], tier, a["defense"], a.get("type", "normal"), a.get("element"), a.get("asset")))
+                        else:
+                            all_armor.append((armor_data["name"], tier, armor_data["defense"], armor_data.get("type", "normal"), armor_data.get("element"), armor_data.get("asset")))
+                    items = [(f"{a[0]} (T{a[1]})", a) for a in all_armor]
+                
+                item_h = 30
+                visible_count = 8
+                max_scroll = max(0, len(items) - visible_count)
+                start_idx = self.cheat_scroll
+                end_idx = min(start_idx + visible_count, len(items))
+                btn_area_w = menu_w - 20
+                
+                # Скроллбар имеет приоритет!
+                if len(items) > visible_count:
+                    scroll_x = menu_x + menu_w - 15
+                    scroll_rect = pygame.Rect(scroll_x, content_y, 8, 150)
+                    if scroll_rect.collidepoint(pos):
+                        self.cheat_dragging_scroll = True
+                        relative_y = (pos[1] - content_y) / 150
+                        self.cheat_scroll = int(relative_y * max_scroll)
+                        self.cheat_scroll = max(0, min(self.cheat_scroll, max_scroll))
+                        return
+                
+                # Клик по элементам
+                for i in range(start_idx, end_idx):
+                    name, data = items[i]
+                    btn_rect = pygame.Rect(menu_x, content_y + (i - start_idx) * item_h, btn_area_w, item_h)
+                    if btn_rect.collidepoint(pos) and not self.cheat_menu_just_opened:
+                        if self.cheat_tab == "cards":
+                            from modules.cards import AbilityCard
+                            self.inv_mgr.cards.append(AbilityCard(*data))
+                            self.message = f"Получена: {data[0]}!"
+                        else:
+                            from modules.entities import Armor
+                            armor = Armor(data[0], data[1], data[2], data[3], data[5], data[4])
+                            self.inv_mgr.armor.append(armor)
+                            self.message = f"Получена: {data[0]}!"
+                        self.message_timer = 60
+                        self.cheat_menu_visible = False
+                        return
+                
+                if self.cheat_menu_just_opened:
+                    self.cheat_menu_just_opened = False
+                
+                # Закрыть меню если клик вне его
+                menu_rect = pygame.Rect(menu_x, menu_y, menu_w, menu_h)
+                if not menu_rect.collidepoint(pos) and not self.cheat_btn.is_clicked(pos):
+                    self.cheat_menu_visible = False
+                    self.cheat_dragging_scroll = False
+                return
+            
+            # Кнопки открытия меню (только если меню закрыто)
+            if self.test_enemy_btn.is_clicked(pos):
+                self.test_enemy_menu_visible = not self.test_enemy_menu_visible
+                self.test_enemy_scroll = 0
+                self.test_enemy_dragging_scroll = False
+            elif self.cheat_btn.is_clicked(pos):
+                self.cheat_menu_visible = not self.cheat_menu_visible
+                self.cheat_scroll = 0
+                self.cheat_menu_just_opened = True
+                menu_x, menu_y = SCREEN_WIDTH - 290, 440
+                menu_w, menu_h = 270, 300
+                content_y = menu_y + 35
+                
+                # Вкладки
+                cards_tab_rect = pygame.Rect(menu_x, menu_y, 135, 30)
+                armor_tab_rect = pygame.Rect(menu_x + 135, menu_y, 135, 30)
+                
+                if cards_tab_rect.collidepoint(pos):
+                    self.cheat_tab = "cards"
+                    self.cheat_scroll = 0
+                    return
+                elif armor_tab_rect.collidepoint(pos):
+                    self.cheat_tab = "armor"
+                    self.cheat_scroll = 0
+                    return
                 
                 # Получаем список всех карт или брони
                 if self.cheat_tab == "cards":
@@ -335,17 +481,28 @@ class Game:
                 
                 item_h = 30
                 visible_count = 8
+                max_scroll = max(0, len(items) - visible_count)
                 start_idx = self.cheat_scroll
                 end_idx = min(start_idx + visible_count, len(items))
                 
                 # Ширина области кнопок (без скроллбара)
                 btn_area_w = menu_w - 20
-                content_y = menu_y + 35
                 
+                # Проверка клика по скроллбару СНАЧАЛА (приоритет)
+                if len(items) > visible_count:
+                    scroll_x = menu_x + menu_w - 15
+                    scroll_rect = pygame.Rect(scroll_x, content_y, 8, 150)
+                    if scroll_rect.collidepoint(pos):
+                        self.cheat_dragging_scroll = True
+                        relative_y = (pos[1] - content_y) / 150
+                        self.cheat_scroll = int(relative_y * max_scroll)
+                        self.cheat_scroll = max(0, min(self.cheat_scroll, max_scroll))
+                        return
+                
+                # Проверка клика по элементам списка
                 for i in range(start_idx, end_idx):
                     name, data = items[i]
                     btn_rect = pygame.Rect(menu_x, content_y + (i - start_idx) * item_h, btn_area_w, item_h)
-                    # Проверяем что клик по кнопке и не в области скроллбара
                     if btn_rect.collidepoint(pos) and not self.cheat_menu_just_opened:
                         if self.cheat_tab == "cards":
                             from modules.cards import AbilityCard
@@ -364,51 +521,12 @@ class Game:
                 if self.cheat_menu_just_opened:
                     self.cheat_menu_just_opened = False
                 
-                # Скролл колёсиком
-                max_scroll = max(0, len(items) - visible_count)
-                
-                # Обработка клика по скроллбару
-                if len(items) > visible_count:
-                    scroll_x = menu_x + menu_w - 15
-                    scroll_rect = pygame.Rect(scroll_x, content_y, 8, 150)
-                    if scroll_rect.collidepoint(pos):
-                        self.cheat_dragging_scroll = True
-                        # Вычисляем позицию скролла по клику
-                        relative_y = (pos[1] - content_y) / 150
-                        self.cheat_scroll = int(relative_y * max_scroll)
-                        self.cheat_scroll = max(0, min(self.cheat_scroll, max_scroll))
-                
-                # Закрыть меню если клик вне его (но не по вкладкам)
+                # Закрыть меню если клик вне него (но не по вкладкам)
                 menu_rect = pygame.Rect(menu_x, menu_y, menu_w, menu_h)
                 if not menu_rect.collidepoint(pos) and not self.cheat_btn.is_clicked(pos):
                     self.cheat_menu_visible = False
                     self.cheat_dragging_scroll = False
-            # Обработка выбора врага из тестового меню
-            if self.test_enemy_menu_visible:
-                menu_x, menu_y = SCREEN_WIDTH - 290, 150  # Перенесено выше, чтобы не перекрывать кнопку
-                menu_w, item_h = 270, 35
-                visible_count = 8  # Сколько врагов видно
-                max_scroll = max(0, len(self.test_enemies) - visible_count)
-                for i in range(self.test_enemy_scroll, min(self.test_enemy_scroll + visible_count, len(self.test_enemies))):
-                    enemy = self.test_enemies[i]
-                    btn_rect = pygame.Rect(menu_x, menu_y + (i - self.test_enemy_scroll) * item_h, menu_w, item_h)
-                    if btn_rect.collidepoint(pos):
-                        # Создаём врага для боя
-                        self.next_enemy = Enemy(
-                            name=enemy["name"],
-                            hp=enemy["hp"],
-                            damage_range=enemy["dmg"],
-                            image_path=f"assets/images/{enemy['icon']}.png",
-                            icon_type=enemy["icon"],
-                            enemy_type=enemy["enemy_type"],
-                            damage_type=enemy["dmg_type"]
-                        )
-                        self.test_enemy_menu_visible = False
-                        break
-                # Закрыть меню если клик вне его
-                menu_rect = pygame.Rect(menu_x, menu_y, 270, visible_count * item_h + 10)
-                if not menu_rect.collidepoint(pos) and not self.test_enemy_btn.is_clicked(pos):
-                    self.test_enemy_menu_visible = False
+        
         elif self.game_state == "PRE_BATTLE":
             if self.fight_btn.is_clicked(pos):
                 # Выбрать только отмеченные карты (до 5)
@@ -450,6 +568,8 @@ class Game:
             if smith_tab_rect.collidepoint(pos):
                 self.inventory_tab = "smith"
                 self.inventory_scroll = 0
+                # Обновляем данные при переходе на вкладку кузницы
+                self.inventory_armor = self.inv_mgr.armor
                 return
             # Клик по ползунку скролла
             scroll_bar_x = SCREEN_WIDTH - 30
@@ -498,7 +618,30 @@ class Game:
             # Клик по кузнице - обработка крафта
             if self.inventory_tab == "smith":
                 from modules.config import ARMOR_UPGRADES
-                # Группируем брони по имени
+                
+                # Сначала проверяем специальный рецепт: Броня тьмы (Огненная+ + Водяная+ + Земляная+)
+                has_fire_plus = any(a.name == "Огненная броня+" and a.tier == 3 for a in self.inventory_armor)
+                has_water_plus = any(a.name == "Водяная броня+" and a.tier == 3 for a in self.inventory_armor)
+                has_ground_plus = any(a.name == "Земляная броня+" and a.tier == 3 for a in self.inventory_armor)
+                
+                y_pos = 220
+                
+                if has_fire_plus and has_water_plus and has_ground_plus:
+                    dark_armor_rect = pygame.Rect(50, y_pos, 700, 80)
+                    if dark_armor_rect.collidepoint(pos):
+                        if self.inv_mgr.gold < 100:
+                            self.message = "Нужно 100G!"
+                            self.message_timer = 60
+                            return
+                        success, msg = self.inv_mgr.craft_armor("Броня тьмы", 5)
+                        self.message = msg
+                        self.message_timer = 60
+                        self.inventory_armor = self.inv_mgr.armor
+                        self.equipped_armor = self.inv_mgr.equipped_armor
+                        return
+                    y_pos += 100
+                
+                # Группируем брони по имени (только для обычного крафта)
                 armor_groups = {}
                 for i, armor in enumerate(self.inventory_armor):
                     key = (armor.name, armor.tier)
@@ -506,8 +649,7 @@ class Game:
                         armor_groups[key] = []
                     armor_groups[key].append(i)
                 
-                # Проверяем клик по группам
-                y_pos = 220
+                # Проверяем клик по группам (обычный крафт)
                 for (name, tier), indices in armor_groups.items():
                     if len(indices) >= 3:
                         group_rect = pygame.Rect(50, y_pos, 700, 80)
@@ -534,25 +676,7 @@ class Game:
                                 self.equipped_armor = self.inv_mgr.equipped_armor
                                 return
                         y_pos += 100
-                
-                # Специальный рецепт: Броня тьмы
-                has_fire_plus = any(a.name == "Огненная броня+" and a.tier == 3 for a in self.inventory_armor)
-                has_water_plus = any(a.name == "Водяная броня+" and a.tier == 3 for a in self.inventory_armor)
-                has_ground_plus = any(a.name == "Земляная броня+" and a.tier == 3 for a in self.inventory_armor)
-                
-                if has_fire_plus and has_water_plus and has_ground_plus:
-                    dark_armor_rect = pygame.Rect(50, y_pos, 700, 80)
-                    if dark_armor_rect.collidepoint(pos):
-                        if self.inv_mgr.gold < 100:
-                            self.message = "Нужно 100G!"
-                            self.message_timer = 60
-                            return
-                        success, msg = self.inv_mgr.craft_armor("Броня тьмы", 5)
-                        self.message = msg
-                        self.message_timer = 60
-                        self.inventory_armor = self.inv_mgr.armor
-                        self.equipped_armor = self.inv_mgr.equipped_armor
-                        return
+        
         elif self.game_state == "SHOP":
             # Если открыто окно апгрейда - обрабатываем только кнопки окна
             if self.selected_upgrade_card is not None:

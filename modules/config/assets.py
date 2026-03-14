@@ -55,9 +55,6 @@ ARMOR_UPGRADES = {
     ("Земляная броня", 2): ("Земляная броня+", 3, 2, "elemental", "ground", "armor_elemental_2_grass.png"),
     ("Усиленная броня", 3): ("Усиленная броня+", 3, 8, "metal", None, "armor_metal_3.png"),
     ("Усиленная броня+", 3): ("Легендарная броня", 4, 5, "legendary", None, "armor_legendary_4.png"),
-    ("Огненная броня+", 3): ("Броня тьмы", 5, 8, "elemental", "dark", "armor_dark_5.png"),
-    ("Водяная броня+", 3): ("Броня тьмы", 5, 8, "elemental", "dark", "armor_dark_5.png"),
-    ("Земляная броня+", 3): ("Броня тьмы", 5, 8, "elemental", "dark", "armor_dark_5.png"),
     ("Легендарная броня", 4): ("Божественная броня", 5, 10, "elemental", "light", "divine_armor_5.png"),
 }
 

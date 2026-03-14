@@ -270,8 +270,30 @@ class GameRenderer:
                     armor_groups[key] = []
                 armor_groups[key].append(armor)
 
-            # Показываем группы с 3+ бронями
             y_pos = 220
+            
+            # Сначала показываем специальный рецепт: Броня тьмы
+            has_fire_plus = any(a.name == "Огненная броня+" and a.tier == 3 for a in inventory_armor)
+            has_water_plus = any(a.name == "Водяная броня+" and a.tier == 3 for a in inventory_armor)
+            has_ground_plus = any(a.name == "Земляная броня+" and a.tier == 3 for a in inventory_armor)
+            
+            if has_fire_plus and has_water_plus and has_ground_plus:
+                group_rect = pygame.Rect(50, y_pos, 700, 80)
+                pygame.draw.rect(screen, (60, 0, 90), group_rect, border_radius=8)
+                pygame.draw.rect(screen, (120, 0, 180), group_rect, 2, border_radius=8)
+                
+                group_text = _ensure_fonts()['medium'].render("Броня тьмы", True, (200, 100, 255))
+                screen.blit(group_text, (70, y_pos + 25))
+                
+                recipe_text = _ensure_fonts()['small'].render("Огненная+ + Водяная+ + Земляная+ (100G)", True, LIGHT_GRAY)
+                screen.blit(recipe_text, (70, y_pos + 50))
+                
+                arrow_text = _ensure_fonts()['small'].render("-> Броня тьмы (T5)", True, (200, 100, 255))
+                screen.blit(arrow_text, (400, y_pos + 30))
+                
+                y_pos += 100
+
+            # Показываем группы с 3+ бронями (обычный крафт)
             for (name, tier), armors in armor_groups.items():
                 if len(armors) >= 3:
                     # Проверяем есть ли апгрейд
@@ -306,28 +328,6 @@ class GameRenderer:
                         screen.blit(upgrade_text, (400, y_pos + 30))
 
                     y_pos += 100
-
-            # Специальный рецепт: Броня тьмы
-            has_fire_plus = any(a.name == "Огненная броня+" and a.tier == 3 for a in inventory_armor)
-            has_water_plus = any(a.name == "Водяная броня+" and a.tier == 3 for a in inventory_armor)
-            has_ground_plus = any(a.name == "Земляная броня+" and a.tier == 3 for a in inventory_armor)
-            
-            if has_fire_plus and has_water_plus and has_ground_plus:
-                dark_armor_key = ("Броня тьмы", 5)
-                group_rect = pygame.Rect(50, y_pos, 700, 80)
-                pygame.draw.rect(screen, (60, 0, 90), group_rect, border_radius=8)  # Тёмно-фиолетовый
-                pygame.draw.rect(screen, (120, 0, 180), group_rect, 2, border_radius=8)
-                
-                group_text = _ensure_fonts()['medium'].render("Броня тьмы", True, (200, 100, 255))
-                screen.blit(group_text, (70, y_pos + 25))
-                
-                recipe_text = _ensure_fonts()['small'].render("Огненная+ + Водяная+ + Земляная+ (100G)", True, LIGHT_GRAY)
-                screen.blit(recipe_text, (70, y_pos + 50))
-                
-                arrow_text = _ensure_fonts()['small'].render("-> Броня тьмы (T5)", True, (200, 100, 255))
-                screen.blit(arrow_text, (400, y_pos + 30))
-                
-                y_pos += 100
             
             if y_pos == 220:
                 no_upgrades_text = _ensure_fonts()['small'].render("Нет брони для улучшения (нужно 3 одинаковые)", True, LIGHT_GRAY)
