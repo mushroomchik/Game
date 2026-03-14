@@ -59,8 +59,10 @@ class InventoryManager:
     def craft_armor(self, armor_name: str, armor_tier: int) -> tuple[bool, str]:
         """Объединение 3 одинаковых броней в улучшенную версию"""
         
-        # Специальный рецепт: Броня тьмы из Огненная+ + Водяная+ + Земляная+
+        # Специальный рецепт: Броня тьмы из Огненная+ + Водяная+ + Земляная+ (100G)
         if armor_name == "Броня тьмы" and armor_tier == 5:
+            if self.gold < 100:
+                return False, "Нужно 100G"
             required = ["Огненная броня+", "Водяная броня+", "Земляная броня+"]
             found = []
             for req_name in required:
@@ -89,6 +91,9 @@ class InventoryManager:
             # Если экипирована была одна из удаленных - экипируем новую
             if self.equipped_armor and self.equipped_armor.name in required:
                 self.equipped_armor = new_armor
+            
+            # Списываем золото
+            self.gold -= 100
             
             return True, "Создано: Броня тьмы!"
         

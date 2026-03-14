@@ -308,7 +308,7 @@ class GameRenderer:
                 group_text = _ensure_fonts()['medium'].render("Броня тьмы", True, (200, 100, 255))
                 screen.blit(group_text, (70, y_pos + 25))
                 
-                recipe_text = _ensure_fonts()['small'].render("Огненная+ + Водяная+ + Земляная+", True, LIGHT_GRAY)
+                recipe_text = _ensure_fonts()['small'].render("Огненная+ + Водяная+ + Земляная+ (100G)", True, LIGHT_GRAY)
                 screen.blit(recipe_text, (70, y_pos + 50))
                 
                 arrow_text = _ensure_fonts()['small'].render("-> Броня тьмы (T5)", True, (200, 100, 255))
@@ -782,6 +782,10 @@ class GameRenderer:
         # Кнопка "На карту" справа сверху
         if map_btn:
             map_btn.draw(screen)
+
+        # Кнопка "Обновить" магазин
+        if shop_buttons.get('refresh'):
+            shop_buttons['refresh'].draw(screen)
 
         # Сообщение
         if message:

@@ -531,6 +531,10 @@ class Game:
                 if has_fire_plus and has_water_plus and has_ground_plus:
                     dark_armor_rect = pygame.Rect(50, y_pos, 700, 80)
                     if dark_armor_rect.collidepoint(pos):
+                        if self.inv_mgr.gold < 100:
+                            self.message = "Нужно 100G!"
+                            self.message_timer = 60
+                            return
                         success, msg = self.inv_mgr.craft_armor("Броня тьмы", 5)
                         self.message = msg
                         self.message_timer = 60
@@ -613,6 +617,18 @@ class Game:
                         self.message = "Недостаточно золота!"
                         self.message_timer = 60
                     return
+            
+            # Кнопка "Обновить" магазин
+            if self.shop_buttons.get('refresh') and self.shop_buttons['refresh'].is_clicked(pos):
+                if self.inv_mgr.gold >= 25:
+                    self.inv_mgr.gold -= 25
+                    self.shop_cards = self.event_mgr.generate_shop_cards()
+                    self.message = "Магазин обновлён!"
+                    self.message_timer = 60
+                else:
+                    self.message = "Нужно 25G!"
+                    self.message_timer = 60
+                return
 
             # Скролл в магазине
             scroll_bar_x = SCREEN_WIDTH - 30
@@ -840,6 +856,7 @@ class Game:
             'upgrade': Button(SCREEN_WIDTH // 2 - 190, btn_y, 120, 40, "Улучшить", GREEN),
             'sell': Button(SCREEN_WIDTH // 2 - 60, btn_y, 120, 40, "Продать", ORANGE),
             'cancel': Button(SCREEN_WIDTH // 2 + 70, btn_y, 120, 40, "Отмена", RED),
+            'refresh': Button(SCREEN_WIDTH - 170, 170, 150, 40, "Обновить (25G)", CYAN),
         }
 
     def _enemy_defeated(self):
