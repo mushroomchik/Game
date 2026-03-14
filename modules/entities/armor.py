@@ -43,7 +43,12 @@ class Armor:
 
     def get_effect_text(self) -> str:
         if self.armor_type == "elemental" and self.element:
-            return f"Защита: {self.defense} | Отражение: {self.element}"
+            element_names = {
+                "fire": "Огонь", "water": "Вода", "electric": "Молния",
+                "grass": "Природа", "ground": "Земля", "light": "Свет", "dark": "Тьма"
+            }
+            elem_name = element_names.get(self.element, self.element)
+            return f"Защита: {self.defense} | Стихия: {elem_name}"
         return f"Защита: {self.defense}"
 
     def is_clicked(self, pos, x, y) -> bool:

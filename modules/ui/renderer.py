@@ -131,8 +131,10 @@ class GameRenderer:
             return "Лесной регион (1-5)"
         elif floor <= 10:
             return "Озерный регион (6-10)"
-        else:
+        elif floor <= 15:
             return "Огненная пещера (11-15)"
+        else:
+            return "Кладбище (16-20)"
 
     @staticmethod
     def _draw_map_legend(screen):

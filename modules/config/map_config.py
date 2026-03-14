@@ -4,6 +4,7 @@ STAGES = {
     1: {"name": "Лес", "floors": range(1, 6), "theme": "forest"},
     2: {"name": "Озеро", "floors": range(6, 11), "theme": "water"},
     3: {"name": "Пещера", "floors": range(11, 16), "theme": "fire"},
+    4: {"name": "Кладбище", "floors": range(16, 21), "theme": "dark"},
 }
 
 # Карта
@@ -29,6 +30,8 @@ LOCATIONS = {
             ("Гоблин", 15, 3, 5, "goblin", "normal"),
             ("Волк", 18, 4, 6, "wolf", "normal"),
             ("Древень", 25, 5, 8, "treant", "grass"),
+            ("Светлячок", 20, 4, 7, "firefly", "light"),
+            ("Теневой волк", 22, 5, 8, "wolf", "dark"),
         ],
         "boss": ("Лесной дух", 50, 6, 10, "forest_spirit", "grass"),
     },
@@ -41,6 +44,8 @@ LOCATIONS = {
             ("Рыбо-человек", 28, 6, 9, "fish_man", "water"),
             ("Нага", 32, 7, 10, "naga", "water"),
             ("Черепаха", 35, 4, 8, "turtle", "water"),
+            ("Лунная черепаха", 40, 5, 9, "turtle", "light"),
+            ("Морской призрак", 38, 7, 11, "water_spirit", "dark"),
         ],
         "boss": ("Кракен", 80, 10, 15, "kraken", "water"),
     },
@@ -53,8 +58,22 @@ LOCATIONS = {
             ("Магмовый зверь", 32, 7, 10, "magma_beast", "fire"),
             ("Лавовый голем", 38, 8, 12, "lava_golem", "fire"),
             ("Дракончик", 30, 9, 14, "dragon_baby", "fire"),
+            ("Световой элементаль", 35, 8, 12, "fire_spirit", "light"),
+            ("Теневой голем", 42, 9, 14, "lava_golem", "dark"),
         ],
         "boss": ("Древний дракон", 120, 14, 20, "fire_dragon", "fire"),
+    },
+    "graveyard": {
+        "name": "Кладбище",
+        "theme": "dark",
+        "enemies": [
+            ("Банши", 30, 7, 12, "banshee", "dark"),
+            ("Призрак", 25, 6, 10, "ghost", "dark"),
+            ("Гуль", 35, 8, 14, "ghoul", "dark"),
+            ("Скелет-мечник", 28, 9, 15, "skeleton_sword", "dark"),
+            ("Скелет-лучник", 22, 10, 16, "skeleton_archer", "dark"),
+        ],
+        "boss": ("Смерть", 150, 18, 28, "death", "dark"),
     },
 }
 
@@ -64,17 +83,21 @@ def get_location_by_floor(floor: int) -> str:
         return "forest"
     elif floor <= 10:
         return "water"
-    else:
+    elif floor <= 15:
         return "fire"
+    else:
+        return "graveyard"
 
 def get_stage_by_floor(floor: int) -> int:
-    """Получить номер этапа (1-3) по этажу"""
+    """Получить номер этапа (1-4) по этажу"""
     if floor <= 5:
         return 1
     elif floor <= 10:
         return 2
-    else:
+    elif floor <= 15:
         return 3
+    else:
+        return 4
 
 def get_boss_floor(stage: int) -> int:
     """Получить этаж босса для этапа"""

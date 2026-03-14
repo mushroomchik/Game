@@ -162,7 +162,8 @@ class AbilityCard:
     def _draw_tooltip(self, screen):
         """Всплывающая подсказка"""
         type_names = {"normal": "Физический", "fire": "Огонь", "water": "Вода",
-                      "electric": "Электричество", "grass": "Природа", "ground": "Земля"}
+                      "electric": "Электричество", "grass": "Природа", "ground": "Земля",
+                      "light": "Свет", "dark": "Тьма"}
         lines = [
             f"{self.name}", f"Стоимость: {self.dice_cost} куб.",
             f"Требование: {self._get_requirement_text()}", "", "Полное описание:"

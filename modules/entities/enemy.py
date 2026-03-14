@@ -106,7 +106,7 @@ class Enemy:
         elif self.enemy_type == "elemental":
             info.extend(["ЭЛЕМЕНТАЛЬ: Иммунитет к стихиям!", "Слаб к обычным!"])
         info.append("Эффективность атак:")
-        for attack_type in ["normal", "fire", "water", "electric", "grass", "ground"]:
+        for attack_type in ["normal", "fire", "water", "electric", "grass", "ground", "light", "dark"]:
             mult = self._get_effectiveness_multiplier(attack_type)
             name = TYPE_NAMES.get(attack_type, attack_type)
             if mult == 0: info.append(f"  {name}: ИММУНИТЕТ")

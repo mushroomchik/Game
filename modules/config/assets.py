@@ -10,6 +10,8 @@ ELEMENT_COLORS = {
     "electric": (255, 220, 50),
     "grass": (100, 220, 100),
     "ground": (180, 120, 60),
+    "light": (255, 255, 200),  # Свет - светло-жёлтый
+    "dark": (80, 0, 120),      # Тьма - тёмно-фиолетовый
 }
 
 # Цвета эффектов
@@ -33,7 +35,7 @@ ARMOR_TIERS = {
     ],
     3: {"name": "Усиленная броня", "defense": 4, "type": "metal", "asset": "armor_metal_3.png"},
     4: {"name": "Легендарная броня", "defense": 5, "type": "legendary", "asset": "armor_legendary_4.png"},
-    5: {"name": "Божественная броня", "defense": 10, "type": "divine", "asset": "divine_armor_5.png"},
+    5: {"name": "Божественная броня", "defense": 10, "type": "elemental", "element": "light", "asset": "divine_armor_5.png"},
 }
 
 # Улучшенные версии брони (для крафта из 3 одинаковых)
@@ -45,7 +47,7 @@ ARMOR_UPGRADES = {
     ("Земляная броня", 2): ("Земляная броня+", 3, 2, "elemental", "ground", "armor_elemental_2_grass.png"),
     ("Усиленная броня", 3): ("Усиленная броня+", 3, 8, "metal", None, "armor_metal_3.png"),
     ("Усиленная броня+", 3): ("Легендарная броня", 4, 5, "legendary", None, "armor_legendary_4.png"),
-    ("Легендарная броня", 4): ("Божественная броня", 5, 10, "divine", None, "divine_armor_5.png"),
+    ("Легендарная броня", 4): ("Божественная броня", 5, 10, "elemental", "light", "divine_armor_5.png"),
 }
 
 # Иконки

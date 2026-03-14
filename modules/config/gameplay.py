@@ -2,12 +2,12 @@
 # Базовые статы
 PLAYER_MAX_HP = 25
 DICE_COUNT = 2
-MAX_FLOOR = 15
+MAX_FLOOR = 20
 FLOOR_HEAL = 3
 CARDS_PER_TURN = 5
 
 # Прогрессия - этажи, на которых даётся дополнительный кубик
-DICE_MILESTONES = [0, 1, 3, 6, 10, 15]
+DICE_MILESTONES = [0, 1, 3, 6, 10, 15, 20]
 
 def get_dice_count_by_floor(floor: int) -> int:
     """Получить количество кубиков по этажу"""
