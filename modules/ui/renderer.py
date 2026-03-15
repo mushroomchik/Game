@@ -2,7 +2,7 @@
 import pygame
 from modules.config.display import *  # ✅ Все цвета
 from modules.config.gameplay import *  # ✅ Константы геймплея
-from modules.config.cards_data import CARD_UPGRADES
+from modules.config.cards_data import CARD_UPGRADES, DEVIL_SHOP_PRICES
 from modules.config.gameplay import UPGRADE_COSTS  # Для магазина
 import modules.utils.fonts as fonts_module
 from modules.utils import IconRenderer
@@ -631,7 +631,7 @@ class GameRenderer:
     def draw_shop(screen, shop_cards: list, inventory_cards: list, gold: int,
                  selected_upgrade_card: int, upgrade_flash: int,
                  shop_buttons: dict, message: str = "", scroll: int = 0,
-                 map_btn: Button = None):
+                 map_btn: Button = None, is_devil_shop: bool = False, player_hp: int = 0):
         """Отрисовка магазина"""
         # Затемнение
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -639,10 +639,16 @@ class GameRenderer:
         overlay.set_alpha(230)
         screen.blit(overlay, (0, 0))
 
-        # Заголовок (центрируем)
-        title = _ensure_fonts()['large'].render("МАГАЗИН", True, GOLD)
+        # Заголовок (центрируем) - красный для дьявольского магазина
+        title_color = RED if is_devil_shop else GOLD
+        title = _ensure_fonts()['large'].render("МАГАЗИН", True, title_color)
         title_x = (SCREEN_WIDTH - title.get_width()) // 2
         screen.blit(title, (title_x, 80))
+        
+        # Для дьявольского магазина показываем HP
+        if is_devil_shop:
+            hp_text = _ensure_fonts()['medium'].render(f"HP: {player_hp}", True, RED)
+            screen.blit(hp_text, (SCREEN_WIDTH // 2 - 30, 160))
 
         # Золото
         IconRenderer.draw_gold_icon(screen, SCREEN_WIDTH // 2 - 15, 130, 25)
@@ -655,6 +661,9 @@ class GameRenderer:
         shop_hover_disabled = selected_upgrade_card is not None  # Блокируем hover если открыто окно
         for i, card in enumerate(shop_cards):
             card.set_position(150 + i * 200, 210)
+            # Передаём контекст дьявольского магазина в карту
+            card._is_devil_shop = is_devil_shop
+            card._player_hp = player_hp
             if not shop_hover_disabled:
                 card.check_hover(pygame.mouse.get_pos())
             else:
@@ -711,8 +720,8 @@ class GameRenderer:
         if selected_upgrade_card is not None and 0 <= selected_upgrade_card < len(inventory_cards):
             card = inventory_cards[selected_upgrade_card]
             
-            # Для карт 3 и 4 тира - показываем окно продажи
-            if card.tier >= 3:
+            # Для карт 3 и 4 тира ИЛИ карт тьмы - показываем окно продажи
+            if card.tier >= 3 or card.damage_type == "dark":
                 upgrade_box_w, upgrade_box_h = 400, 120
                 upgrade_box_x = (SCREEN_WIDTH - upgrade_box_w) // 2
                 upgrade_box_y = (SCREEN_HEIGHT - upgrade_box_h) // 2
@@ -782,8 +791,8 @@ class GameRenderer:
         # Кнопки (кроме next_floor - теперь только map_btn сверху)
         if selected_upgrade_card is not None:
             selected_card = inventory_cards[selected_upgrade_card] if 0 <= selected_upgrade_card < len(inventory_cards) else None
-            # Рисуем кнопку "Улучшить" только для карт ниже 3 тира
-            if selected_card and selected_card.tier < 3:
+            # Рисуем кнопку "Улучшить" только для карт ниже 3 тира и не тьма
+            if selected_card and selected_card.tier < 3 and selected_card.damage_type != "dark":
                 if shop_buttons.get('upgrade'):
                     shop_buttons['upgrade'].draw(screen)
             # Кнопка "Продать" для всех карт
@@ -894,7 +903,7 @@ class GameRenderer:
     # === ВЫБОР СОБЫТИЯ ===
     # =========================================================================
     @staticmethod
-    def draw_event_choice(screen, event_choices: list):
+    def draw_event_choice(screen, event_choices: list, is_devil_shop: bool = False):
         """Отрисовка выбора следующего события"""
         # Затемнение
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -919,7 +928,9 @@ class GameRenderer:
 
             # Фон карточки
             pygame.draw.rect(screen, CARD_BG, rect, border_radius=10)
-            pygame.draw.rect(screen, GOLD, rect, 3, border_radius=10)
+            # Красная рамка для дьявольского магазина
+            border_color = RED if event["type"] == "devil_shop" else GOLD
+            pygame.draw.rect(screen, border_color, rect, 3, border_radius=10)
 
             # Иконка (центрирована, если есть)
             if event.get("icon"):
@@ -928,8 +939,10 @@ class GameRenderer:
                 screen.blit(icon, (icon_x, 270))
 
             # Название (центрировано и с переносом если нужно)
+            # Красное название для дьявольского магазина
             name_text = event["name"]
-            name = _ensure_fonts()['medium'].render(name_text, True, WHITE)
+            name_color = RED if event["type"] == "devil_shop" else WHITE
+            name = _ensure_fonts()['medium'].render(name_text, True, name_color)
             name_x = x + (card_width - name.get_width()) // 2
             screen.blit(name, (name_x, 350))
 

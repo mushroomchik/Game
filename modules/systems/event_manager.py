@@ -1,6 +1,9 @@
 """События: награды, выбор"""
 import random
-from modules.config import TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_4_CARDS, REWARD_CHANCES, SHOP_CARDS, ARMOR_TIERS
+from modules.config import (TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_4_CARDS, 
+                            REWARD_CHANCES, SHOP_CARDS, ARMOR_TIERS,
+                            TIER_DARK_T2_CARDS, TIER_DARK_T3_CARDS, TIER_DARK_T4_CARDS,
+                            DEVIL_SHOP_TIER_CHANCES)
 from modules.cards import AbilityCard
 from modules.entities import Armor
 
@@ -35,6 +38,27 @@ class EventManager:
         return cards
 
     @staticmethod
+    def generate_devil_shop_cards() -> list[AbilityCard]:
+        """Генерация карт для дьявольского магазина (3 карты)"""
+        cards = []
+        tiers = list(DEVIL_SHOP_TIER_CHANCES.keys())
+        weights = list(DEVIL_SHOP_TIER_CHANCES.values())
+        
+        tier_dark_map = {
+            2: TIER_DARK_T2_CARDS,
+            3: TIER_DARK_T3_CARDS,
+            4: TIER_DARK_T4_CARDS,
+        }
+        
+        for _ in range(3):
+            tier = random.choices(tiers, weights=weights)[0]
+            available = list(tier_dark_map[tier])
+            data = random.choice(available)
+            cards.append(AbilityCard(*data))
+        
+        return cards
+
+    @staticmethod
     def generate_treasure() -> list[dict]:
         """Генерация сокровищ — карта И броня"""
         items = []
@@ -58,8 +82,19 @@ class EventManager:
 
     @staticmethod
     def get_event_choices() -> list[dict]:
-        return [
-            {"type": "shop", "name": "Магазин", "icon": None},
-            {"type": "treasure", "name": "Снаряжение", "icon": None},
-            {"type": "campfire", "name": "Костер", "icon": None}
-        ]
+        """Получение списка событий для выбора (обычный магазин или дьявольский)"""
+        # 10% шанс на дьявольский магазин вместо обычного
+        is_devil_shop = random.random() < 0.1
+        
+        if is_devil_shop:
+            return [
+                {"type": "devil_shop", "name": "Магазин", "icon": None},
+                {"type": "treasure", "name": "Снаряжение", "icon": None},
+                {"type": "campfire", "name": "Костер", "icon": None}
+            ]
+        else:
+            return [
+                {"type": "shop", "name": "Магазин", "icon": None},
+                {"type": "treasure", "name": "Снаряжение", "icon": None},
+                {"type": "campfire", "name": "Костер", "icon": None}
+            ]

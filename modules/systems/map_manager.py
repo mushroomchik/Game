@@ -37,11 +37,12 @@ class MapNode:
         icon_colors = {
             "enemy": RED,
             "shop": ORANGE,
+            "devil_shop": RED,  # Дьявольский магазин - красный
             "treasure": GOLD,
             "campfire": (255, 100, 0),  # Оранжево-красный
             "boss": PURPLE
         }
-        icon_map = {"enemy": "[В]", "shop": "[М]", "treasure": "[С]", "campfire": "[К]", "boss": "[Б]"}
+        icon_map = {"enemy": "[В]", "shop": "[М]", "devil_shop": "[М]", "treasure": "[С]", "campfire": "[К]", "boss": "[Б]"}
         text = icon_map.get(self.type, "?")
         icon_color = icon_colors.get(self.type, WHITE)
         text_surf = _ensure_fonts()['small'].render(text, True, icon_color)

@@ -77,6 +77,8 @@ class Game:
         self.upgrade_flash_timer = 0
         self.shop_buttons = {}
         self.treasure_items = []
+        self.is_devil_shop = False  # Флаг дьявольского магазина
+        self.devil_shop_refreshed = False  # Флаг: уже обновляли магазин
         self.heal_flash_timer = 0
         self.hero_damage_flash_timer = 0
         self.enemy_damage_flash_timer = 0
@@ -189,8 +191,8 @@ class Game:
                     # Скролл в меню чит-кнопки (карты/броня)
                     if self.cheat_menu_visible:
                         if self.cheat_tab == "cards":
-                            from modules.config import TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_3_CARDS, TIER_4_CARDS
-                            all_cards = TIER_0_CARDS + TIER_1_CARDS + TIER_2_CARDS + TIER_3_CARDS + TIER_4_CARDS
+                            from modules.config import TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_3_CARDS, TIER_4_CARDS, TIER_DARK_T2_CARDS, TIER_DARK_T3_CARDS, TIER_DARK_T4_CARDS
+                            all_cards = TIER_0_CARDS + TIER_1_CARDS + TIER_2_CARDS + TIER_3_CARDS + TIER_4_CARDS + TIER_DARK_T2_CARDS + TIER_DARK_T3_CARDS + TIER_DARK_T4_CARDS
                             max_scroll = max(0, len(all_cards) - 8)
                         else:
                             from modules.config import ARMOR_TIERS
@@ -273,8 +275,8 @@ class Game:
                     scroll_bar_h = 150
                     
                     if self.cheat_tab == "cards":
-                        from modules.config import TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_3_CARDS, TIER_4_CARDS
-                        all_items = TIER_0_CARDS + TIER_1_CARDS + TIER_2_CARDS + TIER_3_CARDS + TIER_4_CARDS
+                        from modules.config import TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_3_CARDS, TIER_4_CARDS, TIER_DARK_T2_CARDS, TIER_DARK_T3_CARDS, TIER_DARK_T4_CARDS
+                        all_items = TIER_0_CARDS + TIER_1_CARDS + TIER_2_CARDS + TIER_3_CARDS + TIER_4_CARDS + TIER_DARK_T2_CARDS + TIER_DARK_T3_CARDS + TIER_DARK_T4_CARDS
                     else:
                         from modules.config import ARMOR_TIERS
                         all_items = ARMOR_TIERS
@@ -377,8 +379,8 @@ class Game:
                 
                 # Получаем список
                 if self.cheat_tab == "cards":
-                    from modules.config import TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_3_CARDS, TIER_4_CARDS
-                    all_cards = TIER_0_CARDS + TIER_1_CARDS + TIER_2_CARDS + TIER_3_CARDS + TIER_4_CARDS
+                    from modules.config import TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_3_CARDS, TIER_4_CARDS, TIER_DARK_T2_CARDS, TIER_DARK_T3_CARDS, TIER_DARK_T4_CARDS
+                    all_cards = TIER_0_CARDS + TIER_1_CARDS + TIER_2_CARDS + TIER_3_CARDS + TIER_4_CARDS + TIER_DARK_T2_CARDS + TIER_DARK_T3_CARDS + TIER_DARK_T4_CARDS
                     items = [(c[0] + f" (T{c[9]})", c) for c in all_cards]
                 else:
                     from modules.config import ARMOR_TIERS
@@ -465,8 +467,8 @@ class Game:
                 
                 # Получаем список всех карт или брони
                 if self.cheat_tab == "cards":
-                    from modules.config import TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_3_CARDS, TIER_4_CARDS
-                    all_cards = TIER_0_CARDS + TIER_1_CARDS + TIER_2_CARDS + TIER_3_CARDS + TIER_4_CARDS
+                    from modules.config import TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_3_CARDS, TIER_4_CARDS, TIER_DARK_T2_CARDS, TIER_DARK_T3_CARDS, TIER_DARK_T4_CARDS
+                    all_cards = TIER_0_CARDS + TIER_1_CARDS + TIER_2_CARDS + TIER_3_CARDS + TIER_4_CARDS + TIER_DARK_T2_CARDS + TIER_DARK_T3_CARDS + TIER_DARK_T4_CARDS
                     items = [(c[0] + f" (T{c[9]})", c) for c in all_cards]
                 else:
                     from modules.config import ARMOR_TIERS
@@ -682,8 +684,8 @@ class Game:
             if self.selected_upgrade_card is not None:
                 selected_card = self.inventory_cards[self.selected_upgrade_card]
                 
-                # Кнопка "Улучшить" - только для карт ниже 3 тира
-                if selected_card.tier < 3 and self.shop_buttons.get('upgrade') and self.shop_buttons['upgrade'].is_clicked(pos):
+                # Кнопка "Улучшить" - только для карт ниже 3 тира и не тьма
+                if selected_card.tier < 3 and selected_card.damage_type != "dark" and self.shop_buttons.get('upgrade') and self.shop_buttons['upgrade'].is_clicked(pos):
                     success, msg = self.inv_mgr.upgrade_card(self.selected_upgrade_card)
                     self.message = msg
                     self.message_timer = 60
@@ -742,28 +744,65 @@ class Game:
             # Клик по карте в магазине - покупка
             for i, card in enumerate(self.shop_cards):
                 if card.is_clicked(pos):
-                    if self.inv_mgr.gold >= card.price:
-                        self.inv_mgr.gold -= card.price
-                        self.inv_mgr.cards.append(card)
-                        self.inventory_cards = self.inv_mgr.cards
-                        self.shop_cards.remove(card)
-                        self.message = f"Куплено: {card.name}!"
-                        self.message_timer = 60
+                    if self.is_devil_shop:
+                        # Дьявольский магазин - покупка за HP (отнимается от максимального HP)
+                        from modules.config import DEVIL_SHOP_PRICES
+                        cost = DEVIL_SHOP_PRICES.get(card.tier, 5)
+                        if self.player_max_hp > cost:
+                            self.player_max_hp -= cost
+                            self.player_hp = min(self.player_hp, self.player_max_hp)  # Также уменьшаем текущее HP, если оно было больше нового максимума
+                            self.inv_mgr.cards.append(card)
+                            self.inventory_cards = self.inv_mgr.cards
+                            self.shop_cards.remove(card)
+                            self.player_health = HealthBar(UI_POSITIONS['hero_hp'][0], UI_POSITIONS['hero_hp'][1],
+                                                           200, 30, self.player_max_hp, GREEN)
+                            self.player_health.update(self.player_hp, self.player_block)
+                            self.message = f"Куплено: {card.name} за {cost} HP макс!"
+                            self.message_timer = 60
+                        else:
+                            self.message = f"Нужно {cost} макс. HP!"
+                            self.message_timer = 60
                     else:
-                        self.message = "Недостаточно золота!"
-                        self.message_timer = 60
+                        # Обычный магазин - покупка за золото
+                        if self.inv_mgr.gold >= card.price:
+                            self.inv_mgr.gold -= card.price
+                            self.inv_mgr.cards.append(card)
+                            self.inventory_cards = self.inv_mgr.cards
+                            self.shop_cards.remove(card)
+                            self.message = f"Куплено: {card.name}!"
+                            self.message_timer = 60
+                        else:
+                            self.message = "Недостаточно золота!"
+                            self.message_timer = 60
                     return
             
             # Кнопка "Обновить" магазин
             if self.shop_buttons.get('refresh') and self.shop_buttons['refresh'].is_clicked(pos):
-                if self.inv_mgr.gold >= 25:
-                    self.inv_mgr.gold -= 25
-                    self.shop_cards = self.event_mgr.generate_shop_cards()
-                    self.message = "Магазин обновлён!"
-                    self.message_timer = 60
+                if self.is_devil_shop:
+                    # Дьявольский магазин - обновление за 50 золота, только 1 раз
+                    from modules.config import DEVIL_SHOP_REFRESH_COST
+                    if self.devil_shop_refreshed:
+                        self.message = "Уже обновлено!"
+                        self.message_timer = 60
+                    elif self.inv_mgr.gold >= DEVIL_SHOP_REFRESH_COST:
+                        self.inv_mgr.gold -= DEVIL_SHOP_REFRESH_COST
+                        self.shop_cards = self.event_mgr.generate_devil_shop_cards()
+                        self.devil_shop_refreshed = True
+                        self.message = "Магазин обновлён!"
+                        self.message_timer = 60
+                    else:
+                        self.message = f"Нужно {DEVIL_SHOP_REFRESH_COST}G!"
+                        self.message_timer = 60
                 else:
-                    self.message = "Нужно 25G!"
-                    self.message_timer = 60
+                    # Обычный магазин
+                    if self.inv_mgr.gold >= 25:
+                        self.inv_mgr.gold -= 25
+                        self.shop_cards = self.event_mgr.generate_shop_cards()
+                        self.message = "Магазин обновлён!"
+                        self.message_timer = 60
+                    else:
+                        self.message = "Нужно 25G!"
+                        self.message_timer = 60
                 return
 
             # Скролл в магазине
@@ -889,7 +928,14 @@ class Game:
                 if rect.collidepoint(pos):
                     if event["type"] == "shop":
                         self.shop_cards = self.event_mgr.generate_shop_cards()
-                        self._init_shop_state()
+                        self.is_devil_shop = False
+                        self._init_shop_state(self.is_devil_shop)
+                        self.game_state = "SHOP"
+                    elif event["type"] == "devil_shop":
+                        self.shop_cards = self.event_mgr.generate_devil_shop_cards()
+                        self.is_devil_shop = True
+                        self.devil_shop_refreshed = False
+                        self._init_shop_state(self.is_devil_shop)
                         self.game_state = "SHOP"
                     elif event["type"] == "treasure":
                         self.treasure_items = self.event_mgr.generate_treasure()
@@ -977,7 +1023,7 @@ class Game:
                 self.turn = "ENEMY"
                 self.turn_mgr.start_enemy_turn(self._enemy_turn)
 
-    def _init_shop_state(self):
+    def _init_shop_state(self, is_devil_shop: bool = False):
         """Инициализация состояния магазина"""
         self.inventory_cards = self.inv_mgr.cards
         self.selected_upgrade_card = None
@@ -987,12 +1033,19 @@ class Game:
             card.hovered = False
         # Кнопки под окном апгрейда (по центру)
         btn_y = (SCREEN_HEIGHT + 150) // 2 + 10  # Под окном апгрейда
+        
+        # Текст кнопки обновления зависит от типа магазина
+        if is_devil_shop:
+            refresh_text = "Обновить (50G)"
+        else:
+            refresh_text = "Обновить (25G)"
+        
         self.shop_buttons = {
             'next_floor': Button(SCREEN_WIDTH // 2 - 80, 700, 160, 50, "На карту", BLUE),
             'upgrade': Button(SCREEN_WIDTH // 2 - 190, btn_y, 120, 40, "Улучшить", GREEN),
             'sell': Button(SCREEN_WIDTH // 2 - 60, btn_y, 120, 40, "Продать", ORANGE),
             'cancel': Button(SCREEN_WIDTH // 2 + 70, btn_y, 120, 40, "Отмена", RED),
-            'refresh': Button(SCREEN_WIDTH - 170, 170, 150, 40, "Обновить (25G)", CYAN),
+            'refresh': Button(SCREEN_WIDTH - 170, 170, 150, 40, refresh_text, CYAN),
         }
 
     def _enemy_defeated(self):
@@ -1086,7 +1139,14 @@ class Game:
             self.game_state = "PRE_BATTLE"
         elif node_type == "shop":
             self.shop_cards = self.event_mgr.generate_shop_cards()
-            self._init_shop_state()
+            self.is_devil_shop = False
+            self._init_shop_state(self.is_devil_shop)
+            self.game_state = "SHOP"
+        elif node_type == "devil_shop":
+            self.shop_cards = self.event_mgr.generate_devil_shop_cards()
+            self.is_devil_shop = True
+            self.devil_shop_refreshed = False
+            self._init_shop_state(self.is_devil_shop)
             self.game_state = "SHOP"
         # ... остальные типы
 
@@ -1289,8 +1349,8 @@ class Game:
                 
                 # Получаем список всех карт или брони
                 if self.cheat_tab == "cards":
-                    from modules.config import TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_3_CARDS, TIER_4_CARDS
-                    all_cards = TIER_0_CARDS + TIER_1_CARDS + TIER_2_CARDS + TIER_3_CARDS + TIER_4_CARDS
+                    from modules.config import TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_3_CARDS, TIER_4_CARDS, TIER_DARK_T2_CARDS, TIER_DARK_T3_CARDS, TIER_DARK_T4_CARDS
+                    all_cards = TIER_0_CARDS + TIER_1_CARDS + TIER_2_CARDS + TIER_3_CARDS + TIER_4_CARDS + TIER_DARK_T2_CARDS + TIER_DARK_T3_CARDS + TIER_DARK_T4_CARDS
                     items = [(c[0] + f" (T{c[9]})", c) for c in all_cards]
                 else:
                     from modules.config import ARMOR_TIERS
@@ -1416,7 +1476,9 @@ class Game:
                 self.shop_buttons,
                 self.message,
                 self.inventory_scroll,
-                self.map_btn
+                self.map_btn,
+                self.is_devil_shop,
+                self.player_hp
             )
 
             # УБРАНО: нижняя кнопка to_map_btn - теперь только map_btn сверху
@@ -1436,7 +1498,8 @@ class Game:
         elif self.game_state == "EVENT_CHOICE":
             GameRenderer.draw_event_choice(
                 self.screen,
-                self.event_choices
+                self.event_choices,
+                self.is_devil_shop
             )
 
         elif self.game_state == "GAME_OVER":

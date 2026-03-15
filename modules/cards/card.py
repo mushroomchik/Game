@@ -117,7 +117,10 @@ class AbilityCard:
 
         # Цена
         if show_price:
-            self._draw_price(screen, price_type, player_gold)
+            # Определяем контекст магазина
+            is_devil_shop = getattr(self, '_is_devil_shop', False)
+            player_hp = getattr(self, '_player_hp', 0)
+            self._draw_price(screen, price_type, player_gold, is_devil_shop, player_hp)
 
         # Пометка "Использовано"
         if self.used_this_turn:
@@ -188,14 +191,26 @@ class AbilityCard:
                 k in line for k in ["Цена:", "Тир:", "Тип урона:"]) else WHITE
             self._blit_no_shadow(screen, line, (tx + 10, ty + 5 + i * 18), color)
 
-    def _draw_price(self, screen, price_type: str, player_gold: int):
+    def _draw_price(self, screen, price_type: str, player_gold: int, is_devil_shop: bool = False, player_hp: int = 0):
         if price_type == "buy":
-            value, color, label = self.price, GREEN if player_gold >= self.price else RED, "Цена:"
+            if is_devil_shop:
+                # Дьявольский магазин - цена в HP
+                from modules.config import DEVIL_SHOP_PRICES
+                hp_cost = DEVIL_SHOP_PRICES.get(self.tier, 5)
+                value, color, label = hp_cost, RED if player_hp >= hp_cost else GRAY, "Цена:"
+                text = f"{label} {value} HP"
+                self._blit_with_shadow(screen, text, (self.x + 10, self.y + 145), color)
+            else:
+                # Обычный магазин - цена в золоте
+                value, color, label = self.price, GREEN if player_gold >= self.price else RED, "Цена:"
+                text = f"{label} {value}"
+                self._blit_with_shadow(screen, text, (self.x + 10, self.y + 145), color)
+                IconRenderer.draw_gold_icon(screen, self.x + 105, self.y + 143, 18)
         else:
             value, color, label = self.get_sell_price(), ORANGE, "Продать:"
-        text = f"{label} {value}"
-        self._blit_with_shadow(screen, text, (self.x + 10, self.y + 145), color)
-        IconRenderer.draw_gold_icon(screen, self.x + 105, self.y + 143, 18)
+            text = f"{label} {value}"
+            self._blit_with_shadow(screen, text, (self.x + 10, self.y + 145), color)
+            IconRenderer.draw_gold_icon(screen, self.x + 105, self.y + 143, 18)
 
     def is_clicked(self, pos) -> bool:
         return (self.x <= pos[0] <= self.x + self.width and
