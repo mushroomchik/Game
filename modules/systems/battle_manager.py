@@ -56,14 +56,18 @@ class BattleManager:
         base_dmg, special = self.enemy.attack()
         
         # Применяем эффективность элемента урона врага через броню
-        if armor and armor.armor_type == "elemental" and armor.element:
-            # Если броня элементальная, урон проходит через её тип
-            # Например: огненная броня vs водяной урон = x2 (вода эффективна против огня)
-            # Ищем: атакующий тип (враг) vs защищающийся тип (броня)
-            mult = TYPE_EFFECTIVENESS.get(self.enemy.damage_type, {}).get(armor.element, 1.0)
-            dmg = int(base_dmg * mult)
-            # Вычитаем защиту после применения множителя
-            dmg = max(0, dmg - armor.defense)
+        if armor and armor.armor_type in ("elemental", "elemental_immune") and armor.element:
+            # Проверка на иммунитет (++ броня)
+            if armor.armor_type == "elemental_immune" and armor.element == self.enemy.damage_type:
+                # Полный иммунитет к этому типу урона
+                dmg = 0
+            else:
+                # Обычная элементальная броня - применяем множитель эффективности
+                # Например: огненная броня vs водяной урон = x2 (вода эффективна против огня)
+                mult = TYPE_EFFECTIVENESS.get(self.enemy.damage_type, {}).get(armor.element, 1.0)
+                dmg = int(base_dmg * mult)
+                # Вычитаем защиту после применения множителя
+                dmg = max(0, dmg - armor.defense)
         else:
             # Обычная броня - просто вычитаем защиту
             dmg = max(0, base_dmg - armor.defense) if armor else base_dmg

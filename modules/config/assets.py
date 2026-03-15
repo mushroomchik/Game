@@ -53,9 +53,12 @@ ARMOR_UPGRADES = {
     ("Огненная броня", 2): ("Огненная броня+", 3, 2, "elemental", "fire", "armor_elemental_2_fire.png"),
     ("Водяная броня", 2): ("Водяная броня+", 3, 2, "elemental", "water", "armor_elemental_2_water.png"),
     ("Земляная броня", 2): ("Земляная броня+", 3, 2, "elemental", "ground", "armor_elemental_2_grass.png"),
-    ("Усиленная броня", 3): ("Усиленная броня+", 3, 8, "metal", None, "armor_metal_3.png"),
-    ("Усиленная броня+", 3): ("Легендарная броня", 4, 5, "legendary", None, "armor_legendary_4.png"),
+    ("Усиленная броня", 3): ("Легендарная броня", 4, 5, "legendary", None, "armor_legendary_4.png"),
     ("Легендарная броня", 4): ("Божественная броня", 5, 10, "elemental", "light", "divine_armor_5.png"),
+    # ++ броня (иммунитет к стихии)
+    ("Огненная броня+", 3): ("Огненная броня++", 4, 3, "elemental_immune", "fire", "armor_elemental_2_fire.png"),
+    ("Водяная броня+", 3): ("Водяная броня++", 4, 3, "elemental_immune", "water", "armor_elemental_2_water.png"),
+    ("Земляная броня+", 3): ("Земляная броня++", 4, 3, "elemental_immune", "ground", "armor_elemental_2_grass.png"),
 }
 
 # Иконки
