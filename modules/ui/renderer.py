@@ -236,6 +236,10 @@ class GameRenderer:
             
             hovered_armor = None
             hovered_armor_pos = (0, 0)
+            mouse_pos = get_mouse_pos()  # Получаем один раз для всех проверок
+            
+            # Кэшируем шрифт
+            small_font = _ensure_fonts()['small']
             
             for i, armor in enumerate(armor_visible):
                 row = i // armor_cols
@@ -245,7 +249,6 @@ class GameRenderer:
                 
                 # Проверка наведения для тултипа
                 armor_rect = pygame.Rect(x, y, 120, 120)
-                mouse_pos = get_mouse_pos()
                 if armor_rect.collidepoint(mouse_pos):
                     hovered_armor = armor
                     hovered_armor_pos = mouse_pos
@@ -253,13 +256,9 @@ class GameRenderer:
                 armor.draw(screen, x, y)
                 if equipped_armor == armor:
                     pygame.draw.rect(screen, GREEN, (x - 2, y - 2, 124, 124), 3)
-                # Обрезаем название если слишком длинное
-                name_text = armor.name
-                while len(name_text) > 8 and _ensure_fonts()['small'].render(name_text, True, WHITE).get_width() > 130:
-                    name_text = name_text[:-1]
-                if name_text != armor.name:
-                    name_text = name_text + ".."
-                name = _ensure_fonts()['small'].render(name_text, True, WHITE)
+                # Обрезаем название если слишком длинное (используем len() вместо render)
+                name_text = armor.name[:8] + ".." if len(armor.name) > 8 else armor.name
+                name = small_font.render(name_text, True, WHITE)
                 name_x = x + (120 - name.get_width()) // 2
                 screen.blit(name, (name_x, y + 125))
             
@@ -406,6 +405,8 @@ class GameRenderer:
                 
                 hovered_armor = None
                 hovered_armor_pos = (0, 0)
+                mouse_pos = get_mouse_pos()  # Один раз
+                small_font = _ensure_fonts()['small']  # Кэшируем шрифт
                 
                 for i, armor in enumerate(armor_visible):
                     row = i // armor_cols
@@ -415,7 +416,6 @@ class GameRenderer:
                     
                     # Проверка наведения для тултипа
                     armor_rect = pygame.Rect(x, y, 120, 120)
-                    mouse_pos = get_mouse_pos()
                     if armor_rect.collidepoint(mouse_pos):
                         hovered_armor = armor
                         hovered_armor_pos = mouse_pos
@@ -427,13 +427,9 @@ class GameRenderer:
                     
                     armor.draw(screen, x, y)
                     
-                    # Обрезаем название
-                    name_text = armor.name
-                    while len(name_text) > 8 and _ensure_fonts()['small'].render(name_text, True, WHITE).get_width() > 130:
-                        name_text = name_text[:-1]
-                    if name_text != armor.name:
-                        name_text = name_text + ".."
-                    name = _ensure_fonts()['small'].render(name_text, True, WHITE)
+                    # Обрезаем название (просто по длине)
+                    name_text = armor.name[:8] + ".." if len(armor.name) > 8 else armor.name
+                    name = small_font.render(name_text, True, WHITE)
                     name_x = x + (120 - name.get_width()) // 2
                     screen.blit(name, (name_x, y + 125))
                 
