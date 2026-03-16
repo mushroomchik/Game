@@ -6,6 +6,7 @@ from modules.config.cards_data import CARD_UPGRADES, DEVIL_SHOP_PRICES
 from modules.config.gameplay import UPGRADE_COSTS  # Для магазина
 import modules.utils.fonts as fonts_module
 from modules.utils import IconRenderer
+from modules.utils.scaling import get_mouse_pos
 from .components import HealthBar, Button, Tooltip
 
 # Получение шрифтов с безопасной инициализацией
@@ -49,6 +50,10 @@ class GameRenderer:
         # Подсказка
         hint = _ensure_fonts()['tiny'].render("Кликните чтобы начать приключение", True, LIGHT_GRAY)
         screen.blit(hint, (SCREEN_WIDTH // 2 - hint.get_width() // 2, 330))
+
+        # Подсказка о полноэкранном режиме
+        fs_hint = _ensure_fonts()['tiny'].render("F11 - полноэкранный режим", True, GRAY)
+        screen.blit(fs_hint, (SCREEN_WIDTH // 2 - fs_hint.get_width() // 2, 360))
 
     # =========================================================================
     # === КАРТА ===
@@ -206,7 +211,7 @@ class GameRenderer:
                 row = i // cards_per_row
                 col = i % cards_per_row
                 card.set_position(50 + col * 160, 180 + row * 200)
-                card.check_hover(pygame.mouse.get_pos())
+                card.check_hover(get_mouse_pos())
                 if card.hovered:
                     hovered_card = card
                 card.draw(screen, force_available=True, draw_tooltip=False)
@@ -240,9 +245,10 @@ class GameRenderer:
                 
                 # Проверка наведения для тултипа
                 armor_rect = pygame.Rect(x, y, 120, 120)
-                if armor_rect.collidepoint(pygame.mouse.get_pos()):
+                mouse_pos = get_mouse_pos()
+                if armor_rect.collidepoint(mouse_pos):
                     hovered_armor = armor
-                    hovered_armor_pos = pygame.mouse.get_pos()
+                    hovered_armor_pos = mouse_pos
                 
                 armor.draw(screen, x, y)
                 if equipped_armor == armor:
@@ -409,9 +415,10 @@ class GameRenderer:
                     
                     # Проверка наведения для тултипа
                     armor_rect = pygame.Rect(x, y, 120, 120)
-                    if armor_rect.collidepoint(pygame.mouse.get_pos()):
+                    mouse_pos = get_mouse_pos()
+                    if armor_rect.collidepoint(mouse_pos):
                         hovered_armor = armor
-                        hovered_armor_pos = pygame.mouse.get_pos()
+                        hovered_armor_pos = mouse_pos
                     
                     # Подсветка если выбрана
                     is_selected = armor in selected_armor_for_craft
@@ -604,7 +611,7 @@ class GameRenderer:
         card_start_x = UI_POSITIONS['card_zone'][0] + 15
         for i, card in enumerate(battle_hand[:5]):
             card.set_position(card_start_x + i * 165, UI_POSITIONS['card_zone'][1] + 10)
-            card.check_hover(pygame.mouse.get_pos())
+            card.check_hover(get_mouse_pos())
             card.draw(screen)
 
     @staticmethod
@@ -732,7 +739,7 @@ class GameRenderer:
         # Карты наград
         for i, card in enumerate(reward_cards):
             card.set_position(180 + i * 270, 280)
-            card.check_hover(pygame.mouse.get_pos())
+            card.check_hover(get_mouse_pos())
             card.draw(screen)
 
         # Статистика
@@ -787,7 +794,7 @@ class GameRenderer:
             card._is_devil_shop = is_devil_shop
             card._player_hp = player_hp
             if not shop_hover_disabled:
-                card.check_hover(pygame.mouse.get_pos())
+                card.check_hover(get_mouse_pos())
             else:
                 card.hovered = False
             card.draw(screen, show_price=True, price_type="buy", player_gold=gold)
@@ -808,7 +815,7 @@ class GameRenderer:
             col = i % cards_per_row
             card.set_position(start_x + col * 155, start_y + row * 200)
             if not shop_hover_disabled:
-                card.check_hover(pygame.mouse.get_pos())
+                card.check_hover(get_mouse_pos())
             else:
                 card.hovered = False
             card.draw(screen, show_price=True, price_type="sell", player_gold=gold)
@@ -969,7 +976,7 @@ class GameRenderer:
                 from modules.cards import AbilityCard
                 card = AbilityCard(*item["data"])
                 card.set_position(x, 150)
-                card.check_hover(pygame.mouse.get_pos())
+                card.check_hover(get_mouse_pos())
                 if card.hovered:
                     hovered_card = card
                 card.draw(screen, force_available=True, draw_tooltip=False)
@@ -982,10 +989,11 @@ class GameRenderer:
                 armor.draw(screen, x, 150)
                 # Подсветка при наведении (как у карты)
                 card_rect = pygame.Rect(x, 150, 150, 190)
-                if card_rect.collidepoint(pygame.mouse.get_pos()):
+                mouse_pos = get_mouse_pos()
+                if card_rect.collidepoint(mouse_pos):
                     pygame.draw.rect(screen, WHITE, card_rect, 3)
                     hovered_armor = armor
-                    hovered_armor_pos = pygame.mouse.get_pos()
+                    hovered_armor_pos = mouse_pos
 
         # Отрисовка тултипа для наведенной карты (поверх всех)
         if hovered_card:
@@ -1077,7 +1085,8 @@ class GameRenderer:
             screen.blit(name, (name_x, 350))
 
             # Подсказка при наведении
-            if rect.collidepoint(pygame.mouse.get_pos()):
+            mouse_pos = get_mouse_pos()
+            if rect.collidepoint(mouse_pos):
                 pygame.draw.rect(screen, WHITE, rect, 5, border_radius=10)
 
     # =========================================================================

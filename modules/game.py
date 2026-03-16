@@ -4,6 +4,7 @@ import sys
 from modules.config import *
 import modules.utils.fonts as fonts_module
 from modules.utils import IconRenderer
+from modules.utils.scaling import init_scaling, get_render_surface, blit_to_screen
 from modules.cards.card import _ensure_fonts
 from modules.entities import Dice, Enemy, CharacterIcon, Armor
 from modules.ui.components import HealthBar, Button
@@ -24,8 +25,22 @@ class Game:
         # Локальная ссылка для удобства
         FONTS = get_fonts()
 
+        # Режим экрана (окно/полноэкранный)
+        self.fullscreen = False
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("Knight with Dice")
+        
+        # Инициализация масштабирования
+        init_scaling(SCREEN_WIDTH, SCREEN_HEIGHT)
+        
+        # Функция для преобразования координат мыши
+        from modules.utils import get_mouse_pos
+        
+        def mouse_pos():
+            return get_mouse_pos()
+        
+        self.mouse_pos = mouse_pos
+        
         self.clock = pygame.time.Clock()
         self.running = True
 
@@ -179,8 +194,20 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+            elif event.type == pygame.KEYDOWN:
+                # F11 - переключение полноэкранного режима
+                if event.key == pygame.K_F11:
+                    self.fullscreen = not self.fullscreen
+                    if self.fullscreen:
+                        self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+                        # Получаем реальный размер экрана
+                        real_w, real_h = pygame.display.get_surface().get_size()
+                        init_scaling(real_w, real_h)
+                    else:
+                        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+                        init_scaling(SCREEN_WIDTH, SCREEN_HEIGHT)
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                self._handle_click(pygame.mouse.get_pos())
+                self._handle_click(self.mouse_pos())
             elif event.type == pygame.MOUSEWHEEL:
                 if self.game_state == "INVENTORY":
                     max_scroll = 0
@@ -238,7 +265,7 @@ class Game:
                 if hasattr(self, 'test_enemy_dragging_scroll') and self.test_enemy_dragging_scroll:
                     self.test_enemy_dragging_scroll = False
             elif event.type == pygame.MOUSEMOTION:
-                pos = pygame.mouse.get_pos()
+                pos = self.mouse_pos()
                 
                 # Скроллинг в инвентаре
                 if self.dragging_scroll:
@@ -1359,13 +1386,17 @@ class Game:
         # Обновление hover для карт в инвентаре
         if self.game_state == "INVENTORY":
             for card in self.inventory_cards:
-                card.check_hover(pygame.mouse.get_pos())
+                card.check_hover(self.mouse_pos())
 
     # === ОТРИСОВКА ===
 
     def draw(self):
         # Синхронизация золота с инвентарём
         self.gold = self.inv_mgr.gold
+        
+        # Используем surface для рендеринга
+        screen = get_render_surface()
+        
         """
         Универсальная отрисовка через GameRenderer
         Все параметры передаются через **kwargs
@@ -1387,12 +1418,12 @@ class Game:
 
         # === ОТРИСОВКА ПО СОСТОЯНИЮ ===
         if self.game_state == "MENU":
-            GameRenderer.draw_menu(self.screen, self.start_btn)
+            GameRenderer.draw_menu(screen, self.start_btn)
 
         elif self.game_state == "MAP":
             # Используем сохранённого врага
             GameRenderer.draw_map(
-                self.screen,
+                screen,
                 [],  # Узлы карты больше не рисуются
                 self.floor,
                 self.player_hp,
@@ -1404,46 +1435,46 @@ class Game:
                 self.fight_from_map_btn
             )
             # Тестовая кнопка и меню выбора врага
-            self.test_enemy_btn.draw(self.screen)
+            self.test_enemy_btn.draw(screen)
             if self.test_enemy_menu_visible:
                 menu_x, menu_y = SCREEN_WIDTH - 290, 150
                 item_h = 35
                 visible_count = 8
                 menu_h = visible_count * item_h + 10
                 menu_bg = pygame.Rect(menu_x, menu_y, 270, menu_h)
-                pygame.draw.rect(self.screen, DARK_GRAY, menu_bg, border_radius=5)
-                pygame.draw.rect(self.screen, WHITE, menu_bg, 2, border_radius=5)
+                pygame.draw.rect(screen, DARK_GRAY, menu_bg, border_radius=5)
+                pygame.draw.rect(screen, WHITE, menu_bg, 2, border_radius=5)
                 for i in range(self.test_enemy_scroll, min(self.test_enemy_scroll + visible_count, len(self.test_enemies))):
                     enemy = self.test_enemies[i]
                     btn_rect = pygame.Rect(menu_x, menu_y + (i - self.test_enemy_scroll) * item_h, 270, item_h)
                     color = RED if enemy["enemy_type"] == "boss" else (YELLOW if enemy["enemy_type"] == "spirit" else WHITE)
-                    pygame.draw.rect(self.screen, color if btn_rect.collidepoint(pygame.mouse.get_pos()) else DARK_BLUE, btn_rect, border_radius=3)
+                    pygame.draw.rect(screen, color if btn_rect.collidepoint(self.mouse_pos()) else DARK_BLUE, btn_rect, border_radius=3)
                     text = _ensure_fonts()['tiny'].render(enemy["name"], True, WHITE)
-                    self.screen.blit(text, (menu_x + 10, menu_y + (i - self.test_enemy_scroll) * item_h + 10))
+                    screen.blit(text, (menu_x + 10, menu_y + (i - self.test_enemy_scroll) * item_h + 10))
             # Меню чит-кнопки
-            self.cheat_btn.draw(self.screen)
+            self.cheat_btn.draw(screen)
             if self.cheat_menu_visible:
                 menu_x, menu_y = SCREEN_WIDTH - 290, 440
                 menu_w, menu_h = 270, 300
                 
                 # Фон меню
                 menu_bg = pygame.Rect(menu_x, menu_y, menu_w, menu_h)
-                pygame.draw.rect(self.screen, DARK_GRAY, menu_bg, border_radius=5)
-                pygame.draw.rect(self.screen, GREEN, menu_bg, 2, border_radius=5)
+                pygame.draw.rect(screen, DARK_GRAY, menu_bg, border_radius=5)
+                pygame.draw.rect(screen, GREEN, menu_bg, 2, border_radius=5)
                 
                 # Вкладки
                 cards_tab_rect = pygame.Rect(menu_x, menu_y, 135, 30)
                 armor_tab_rect = pygame.Rect(menu_x + 135, menu_y, 135, 30)
                 
-                pygame.draw.rect(self.screen, GREEN if self.cheat_tab == "cards" else DARK_BLUE, cards_tab_rect, border_radius=5)
-                pygame.draw.rect(self.screen, WHITE, cards_tab_rect, 1, border_radius=5)
-                pygame.draw.rect(self.screen, GREEN if self.cheat_tab == "armor" else DARK_BLUE, armor_tab_rect, border_radius=5)
-                pygame.draw.rect(self.screen, WHITE, armor_tab_rect, 1, border_radius=5)
+                pygame.draw.rect(screen, GREEN if self.cheat_tab == "cards" else DARK_BLUE, cards_tab_rect, border_radius=5)
+                pygame.draw.rect(screen, WHITE, cards_tab_rect, 1, border_radius=5)
+                pygame.draw.rect(screen, GREEN if self.cheat_tab == "armor" else DARK_BLUE, armor_tab_rect, border_radius=5)
+                pygame.draw.rect(screen, WHITE, armor_tab_rect, 1, border_radius=5)
                 
                 cards_text = _ensure_fonts()['tiny'].render("Карты", True, WHITE)
                 armor_text = _ensure_fonts()['tiny'].render("Броня", True, WHITE)
-                self.screen.blit(cards_text, (menu_x + (135 - cards_text.get_width()) // 2, menu_y + 8))
-                self.screen.blit(armor_text, (menu_x + 135 + (135 - armor_text.get_width()) // 2, menu_y + 8))
+                screen.blit(cards_text, (menu_x + (135 - cards_text.get_width()) // 2, menu_y + 8))
+                screen.blit(armor_text, (menu_x + 135 + (135 - armor_text.get_width()) // 2, menu_y + 8))
                 
                 # Получаем список всех карт или брони
                 if self.cheat_tab == "cards":
@@ -1473,10 +1504,10 @@ class Game:
                 for i in range(start_idx, end_idx):
                     name, data = items[i]
                     btn_rect = pygame.Rect(menu_x, content_y + (i - start_idx) * item_h, btn_area_w, item_h)
-                    color = GREEN if btn_rect.collidepoint(pygame.mouse.get_pos()) else DARK_BLUE
-                    pygame.draw.rect(self.screen, color, btn_rect, border_radius=3)
+                    color = GREEN if btn_rect.collidepoint(self.mouse_pos()) else DARK_BLUE
+                    pygame.draw.rect(screen, color, btn_rect, border_radius=3)
                     text = _ensure_fonts()['tiny'].render(name[:25], True, WHITE)
-                    self.screen.blit(text, (menu_x + 10, content_y + (i - start_idx) * item_h + 8))
+                    screen.blit(text, (menu_x + 10, content_y + (i - start_idx) * item_h + 8))
                 
                 # Скроллбар (справа)
                 if len(items) > visible_count:
@@ -1485,8 +1516,8 @@ class Game:
                     scroll_thumb_h = max(20, scroll_bar_h * visible_count // len(items))
                     scroll_pos = int(self.cheat_scroll * (scroll_bar_h - scroll_thumb_h) / max_scroll)
                     scroll_x = menu_x + menu_w - 15
-                    pygame.draw.rect(self.screen, LIGHT_GRAY, (scroll_x, content_y, 8, scroll_bar_h), border_radius=3)
-                    pygame.draw.rect(self.screen, WHITE, (scroll_x, content_y + scroll_pos, 8, scroll_thumb_h), border_radius=3)
+                    pygame.draw.rect(screen, LIGHT_GRAY, (scroll_x, content_y, 8, scroll_bar_h), border_radius=3)
+                    pygame.draw.rect(screen, WHITE, (scroll_x, content_y + scroll_pos, 8, scroll_thumb_h), border_radius=3)
 
         elif self.game_state == "INVENTORY":
             # Обновляем данные перед отрисовкой
@@ -1494,7 +1525,7 @@ class Game:
             self.inventory_armor = self.inv_mgr.armor
             self.equipped_armor = self.inv_mgr.equipped_armor
             GameRenderer.draw_inventory(
-                self.screen,
+                screen,
                 self.inventory_cards,
                 self.inventory_armor,
                 self.equipped_armor,
@@ -1517,7 +1548,7 @@ class Game:
                 card.hovered = False
             selected = [c for c in self.inventory_cards if c.selected_for_battle]
             GameRenderer.draw_pre_battle(
-                self.screen,
+                screen,
                 self.inventory_cards,
                 selected,
                 self.floor,
@@ -1526,7 +1557,7 @@ class Game:
 
         elif self.game_state == "BATTLE":
             GameRenderer.draw_battle(
-                self.screen,
+                screen,
                 self.player_icon,
                 self.player_health,
                 self.gold,
@@ -1547,14 +1578,14 @@ class Game:
                 self.total_wins
             )
             # [TEST] Кнопка убийства врага
-            self.kill_enemy_btn.draw(self.screen)
+            self.kill_enemy_btn.draw(screen)
             # Отрисовка частиц (если используете ParticleSystem)
             if hasattr(self, 'particles'):
-                self.particles.draw(self.screen)
+                self.particles.draw(screen)
 
         elif self.game_state == "REWARD":
             GameRenderer.draw_reward_screen(
-                self.screen,
+                screen,
                 self.reward_cards,
                 self.floor,
                 self.dice_count,
@@ -1567,7 +1598,7 @@ class Game:
             self.inventory_cards = self.inv_mgr.cards
             self.gold = self.inv_mgr.gold
             GameRenderer.draw_shop(
-                self.screen,
+                screen,
                 self.shop_cards,
                 self.inventory_cards,
                 self.gold,
@@ -1585,26 +1616,26 @@ class Game:
 
         elif self.game_state == "TREASURE":
             GameRenderer.draw_treasure(
-                self.screen,
+                screen,
                 self.treasure_items
             )
 
         elif self.game_state == "CAMPFIRE":
             GameRenderer.draw_campfire(
-                self.screen,
+                screen,
                 self.message
             )
 
         elif self.game_state == "EVENT_CHOICE":
             GameRenderer.draw_event_choice(
-                self.screen,
+                screen,
                 self.event_choices,
                 self.is_devil_shop
             )
 
         elif self.game_state == "GAME_OVER":
             GameRenderer.draw_game_over(
-                self.screen,
+                screen,
                 self.floor,
                 self.total_wins,
                 self.next_floor_btn
@@ -1612,12 +1643,13 @@ class Game:
 
         elif self.game_state == "VICTORY":
             GameRenderer.draw_victory(
-                self.screen,
+                screen,
                 self.total_wins,
                 self.next_floor_btn
             )
 
-        # === ОБНОВЛЕНИЕ ЭКРАНА ===
+        # === МАСШТАБИРОВАНИЕ И ВЫВОД НА ЭКРАН ===
+        blit_to_screen(self.screen, screen)
         pygame.display.flip()
 
     # Алиас для обратной совместимости
