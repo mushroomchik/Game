@@ -1076,16 +1076,27 @@ class Game:
         if is_boss:
             # Показать выбор награды после босса
             self.reward_cards = self.event_mgr.generate_reward_cards(True)
-            # Даём легендарную броню 4 тира
-            from modules.entities import Armor
-            boss_armor = Armor("Легендарная броня", 4, 5, "legendary", "armor_legendary_4.png", None)
-            self.inv_mgr.armor.append(boss_armor)
+            
+            # Даём легендарную броню каждый 2-й босс (этажи 10, 20...)
+            give_armor = (self.floor // 5) % 2 == 0  # 10//5=2, 20//5=4 → чётные
+            
+            if give_armor:
+                from modules.entities import Armor
+                boss_armor = Armor("Легендарная броня", 4, 5, "legendary", "armor_legendary_4.png", None)
+                self.inv_mgr.armor.append(boss_armor)
+                self.message = "Получена легендарная броня! "
+            
             # Увеличиваем max HP и восстанавливаем здоровье
             self.player_max_hp += 15
             self.player_hp = self.player_max_hp
             self.player_health = HealthBar(UI_POSITIONS['hero_hp'][0], UI_POSITIONS['hero_hp'][1],
                                            200, 30, self.player_max_hp, GREEN)
-            self.message = "Получена легендарная броня! Max HP +15"
+            
+            if give_armor:
+                self.message += "Max HP +15"
+            else:
+                self.message = "Босс побеждён! Max HP +15"
+            
             self.game_state = "REWARD"
         else:
             # Обычный враг - показать выбор активностей
