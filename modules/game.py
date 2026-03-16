@@ -69,7 +69,9 @@ class Game:
         self.armor_tooltip_armor = None
         self.player_block = 0  # Блок игрока
         self.inventory_tab = "cards"  # "cards", "armor" или "smith"
+        self.smith_subtab = "recipes"  # "recipes" или "craft" - подвкладки кузницы
         self.selected_armor_for_craft = []  # Выбранные брони для крафта
+        self.known_recipes = set()  # Известные рецепты (пока все доступны)
         self.inventory_scroll = 0  # Позиция скролла
         self.dragging_scroll = False  # Флаг для перетаскивания ползунка
         self.event_choices = []
@@ -184,8 +186,14 @@ class Game:
                     max_scroll = 0
                     if self.inventory_tab == "cards":
                         max_scroll = max(0, len(self.inventory_cards) - 10)
-                    else:
+                    elif self.inventory_tab == "armor":
                         max_scroll = max(0, len(self.inventory_armor) - 16)
+                    elif self.inventory_tab == "smith" and self.smith_subtab == "craft":
+                        max_scroll = max(0, len(self.inventory_armor) - 12)
+                    elif self.inventory_tab == "smith" and self.smith_subtab == "recipes":
+                        from modules.config import ARMOR_UPGRADES
+                        total_recipes = len(ARMOR_UPGRADES) + 1
+                        max_scroll = max(0, total_recipes - 5)
                     self.inventory_scroll = max(0, min(self.inventory_scroll - event.y, max_scroll))
                 elif self.game_state == "MAP":
                     # Скролл в меню чит-кнопки (карты/броня)
@@ -242,10 +250,24 @@ class Game:
                             scroll_bar_height = 150
                             max_items = len(self.inventory_cards)
                             visible = 10
-                        else:
-                            scroll_bar_height = 320
+                        elif self.inventory_tab == "armor":
+                            scroll_bar_height = 420
                             max_items = len(self.inventory_armor)
                             visible = 16
+                        elif self.inventory_tab == "smith" and self.smith_subtab == "craft":
+                            scroll_bar_y = 220
+                            scroll_bar_height = 350
+                            max_items = len(self.inventory_armor)
+                            visible = 12
+                        elif self.inventory_tab == "smith" and self.smith_subtab == "recipes":
+                            scroll_bar_y = 220
+                            scroll_bar_height = 400
+                            from modules.config import ARMOR_UPGRADES
+                            max_items = len(ARMOR_UPGRADES) + 1
+                            visible = 5
+                        else:
+                            max_items = 0
+                            visible = 0
                         
                         if max_items > visible:
                             max_scroll = max_items - visible
@@ -555,6 +577,7 @@ class Game:
                 self.game_state = "MAP"
                 self.card_tooltip_visible = False
                 self.armor_tooltip_visible = False
+                self.selected_armor_for_craft = []  # Сброс выбора брони при выходе
             # Клик по вкладкам
             cards_tab_rect = pygame.Rect(50, 120, 150, 40)
             armor_tab_rect = pygame.Rect(210, 120, 150, 40)
@@ -562,17 +585,37 @@ class Game:
             if cards_tab_rect.collidepoint(pos):
                 self.inventory_tab = "cards"
                 self.inventory_scroll = 0
+                self.selected_armor_for_craft = []
                 return
             if armor_tab_rect.collidepoint(pos):
                 self.inventory_tab = "armor"
                 self.inventory_scroll = 0
+                self.selected_armor_for_craft = []
                 return
             if smith_tab_rect.collidepoint(pos):
                 self.inventory_tab = "smith"
                 self.inventory_scroll = 0
+                self.selected_armor_for_craft = []  # Сброс выбора брони
                 # Обновляем данные при переходе на вкладку кузницы
                 self.inventory_armor = self.inv_mgr.armor
+                # Заполняем все рецепты как известные (пока все доступны)
+                from modules.config import ARMOR_UPGRADES
+                self.known_recipes = set(ARMOR_UPGRADES.keys())
+                self.known_recipes.add(("Броня тьмы", 5))  # Специальный рецепт
                 return
+            # Подвкладки кузницы (Рецепты / Крафт)
+            if self.inventory_tab == "smith":
+                recipes_tab_rect = pygame.Rect(50, 170, 180, 35)
+                craft_tab_rect = pygame.Rect(240, 170, 180, 35)
+                if recipes_tab_rect.collidepoint(pos):
+                    self.smith_subtab = "recipes"
+                    self.inventory_scroll = 0
+                    self.selected_armor_for_craft = []
+                    return
+                if craft_tab_rect.collidepoint(pos):
+                    self.smith_subtab = "craft"
+                    self.inventory_scroll = 0
+                    return
             # Клик по ползунку скролла
             scroll_bar_x = SCREEN_WIDTH - 30
             scroll_bar_y = 180
@@ -580,10 +623,25 @@ class Game:
                 scroll_bar_height = 150
                 max_items = len(self.inventory_cards)
                 visible = 10
-            else:
+            elif self.inventory_tab == "armor":
                 scroll_bar_height = 420
                 max_items = len(self.inventory_armor)
-                visible = 12
+                visible = 16
+            elif self.inventory_tab == "smith":
+                if self.smith_subtab == "craft":
+                    scroll_bar_y = 220
+                    scroll_bar_height = 350
+                    max_items = len(self.inventory_armor)
+                    visible = 12
+                elif self.inventory_tab == "smith" and self.smith_subtab == "recipes":
+                        scroll_bar_y = 220
+                        scroll_bar_height = 400
+                        from modules.config import ARMOR_UPGRADES
+                        max_items = len(ARMOR_UPGRADES) + 1
+                        visible = 5
+            else:
+                max_items = 0
+                visible = 0
             
             if max_items > visible:
                 scroll_rect = pygame.Rect(scroll_bar_x, scroll_bar_y, 15, scroll_bar_height)
@@ -621,63 +679,92 @@ class Game:
             if self.inventory_tab == "smith":
                 from modules.config import ARMOR_UPGRADES
                 
-                # Сначала проверяем специальный рецепт: Броня тьмы (Огненная+ + Водяная+ + Земляная+)
-                has_fire_plus = any(a.name == "Огненная броня+" and a.tier == 3 for a in self.inventory_armor)
-                has_water_plus = any(a.name == "Водяная броня+" and a.tier == 3 for a in self.inventory_armor)
-                has_ground_plus = any(a.name == "Земляная броня+" and a.tier == 3 for a in self.inventory_armor)
-                
-                y_pos = 220
-                
-                if has_fire_plus and has_water_plus and has_ground_plus:
-                    dark_armor_rect = pygame.Rect(50, y_pos, 700, 80)
-                    if dark_armor_rect.collidepoint(pos):
-                        if self.inv_mgr.gold < 100:
-                            self.message = "Нужно 100G!"
+                if self.smith_subtab == "craft":
+                    # Подвкладка крафта: выбор 3 броней и кнопка крафта
+                    
+                    # Проверяем скроллбар
+                    if len(self.inventory_armor) > 12:
+                        scroll_rect = pygame.Rect(SCREEN_WIDTH - 30, 220, 15, 350)
+                        if scroll_rect.collidepoint(pos):
+                            max_scroll = len(self.inventory_armor) - 12
+                            relative_y = (pos[1] - 220) / 350
+                            self.inventory_scroll = int(relative_y * max_scroll)
+                            self.inventory_scroll = max(0, min(self.inventory_scroll, max_scroll))
+                            self.dragging_scroll = True
+                            return
+                    
+                    # Обработка клика по броне для выбора
+                    armor_cols = 6
+                    armor_start = self.inventory_scroll
+                    armor_visible = self.inventory_armor[armor_start:armor_start + 12]
+                    
+                    for i, armor in enumerate(armor_visible):
+                        row = i // armor_cols
+                        col = i % armor_cols
+                        x = 50 + col * 140
+                        y = 220 + row * 140
+                        if armor.is_clicked(pos, x, y):
+                            actual_index = armor_start + i
+                            armor_obj = self.inventory_armor[actual_index]
+                            
+                            # Переключение выбора
+                            if armor_obj in self.selected_armor_for_craft:
+                                self.selected_armor_for_craft.remove(armor_obj)
+                            elif len(self.selected_armor_for_craft) < 3:
+                                self.selected_armor_for_craft.append(armor_obj)
+                            return
+                    
+                    # Кнопка крафта
+                    craft_btn_rect = pygame.Rect(SCREEN_WIDTH // 2 - 150, 620, 250, 65)
+                    if craft_btn_rect.collidepoint(pos):
+                        if len(self.selected_armor_for_craft) != 3:
+                            self.message = "Выберите ровно 3 брони!"
                             self.message_timer = 60
                             return
-                        success, msg = self.inv_mgr.craft_armor("Броня тьмы", 5)
-                        self.message = msg
-                        self.message_timer = 60
-                        self.inventory_armor = self.inv_mgr.armor
-                        self.equipped_armor = self.inv_mgr.equipped_armor
-                        return
-                    y_pos += 100
-                
-                # Группируем брони по имени (только для обычного крафта)
-                armor_groups = {}
-                for i, armor in enumerate(self.inventory_armor):
-                    key = (armor.name, armor.tier)
-                    if key not in armor_groups:
-                        armor_groups[key] = []
-                    armor_groups[key].append(i)
-                
-                # Проверяем клик по группам (обычный крафт)
-                for (name, tier), indices in armor_groups.items():
-                    if len(indices) >= 3:
-                        group_rect = pygame.Rect(50, y_pos, 700, 80)
-                        if group_rect.collidepoint(pos):
+                        if self.inv_mgr.gold < 50:
+                            self.message = "Нужно 50G!"
+                            self.message_timer = 60
+                            return
+                        
+                        # Проверяем рецепт
+                        names_tiers = [(a.name, a.tier) for a in self.selected_armor_for_craft]
+                        
+                        # Проверяем специальный рецепт: Броня тьмы
+                        has_fire = ("Огненная броня+", 3) in names_tiers
+                        has_water = ("Водяная броня+", 3) in names_tiers
+                        has_ground = ("Земляная броня+", 3) in names_tiers
+                        
+                        if has_fire and has_water and has_ground:
+                            success, msg = self.inv_mgr.craft_armor("Броня тьмы", 5)
+                            self.message = msg
+                            self.message_timer = 60
+                            self.selected_armor_for_craft = []
+                            self.inventory_armor = self.inv_mgr.armor
+                            self.equipped_armor = self.inv_mgr.equipped_armor
+                            return
+                        
+                        # Проверяем обычный рецепт (все 3 должны быть одинаковые)
+                        if len(set(names_tiers)) == 1:
+                            name, tier = names_tiers[0]
                             upgrade_key = (name, tier)
                             if upgrade_key in ARMOR_UPGRADES:
-                                # Проверяем золото
-                                upgrade_tier = ARMOR_UPGRADES[upgrade_key][1]
-                                if upgrade_tier == 5:
-                                    cost = 100
-                                elif upgrade_tier == 4:
-                                    cost = 50
-                                else:
-                                    cost = 25
-                                if self.inv_mgr.gold < cost:
-                                    self.message = f"Нужно {cost}G!"
-                                    self.message_timer = 60
-                                    return
                                 success, msg = self.inv_mgr.craft_armor(name, tier)
                                 self.message = msg
                                 self.message_timer = 60
-                                # Обновляем список
+                                self.selected_armor_for_craft = []
                                 self.inventory_armor = self.inv_mgr.armor
                                 self.equipped_armor = self.inv_mgr.equipped_armor
                                 return
-                        y_pos += 100
+                        
+                        self.message = "Такого крафта не существует!"
+                        self.message_timer = 60
+                        return
+                    
+                    # Кнопка очистки выбора
+                    clear_btn_rect = pygame.Rect(SCREEN_WIDTH // 2 + 110, 620, 250, 65)
+                    if clear_btn_rect.collidepoint(pos):
+                        self.selected_armor_for_craft = []
+                        return
         
         elif self.game_state == "SHOP":
             # Если открыто окно апгрейда - обрабатываем только кнопки окна
@@ -1417,7 +1504,9 @@ class Game:
                 self.armor_tooltip_pos,
                 self.armor_tooltip_armor,
                 self.inventory_tab,
-                self.inventory_scroll
+                self.inventory_scroll,
+                self.smith_subtab,
+                self.selected_armor_for_craft
             )
 
         elif self.game_state == "PRE_BATTLE":

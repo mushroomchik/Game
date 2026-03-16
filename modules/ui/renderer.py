@@ -162,7 +162,7 @@ class GameRenderer:
     def draw_inventory(screen, inventory_cards: list, inventory_armor: list,
                       equipped_armor, map_btn: Button, message: str = "",
                       armor_tooltip_visible=False, armor_tooltip_pos=(0,0), armor_tooltip_armor=None,
-                      current_tab="cards", scroll=0):
+                      current_tab="cards", scroll=0, smith_subtab="recipes", selected_armor_for_craft=None):
         """Отрисовка экрана инвентаря с вкладками и скроллом"""
         # Затемнение фона
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -228,11 +228,22 @@ class GameRenderer:
             armor_cols = 6  # Меньше колонок из-за большего размера
             armor_start = scroll
             armor_visible = inventory_armor[armor_start:armor_start + 12]
+            
+            hovered_armor = None
+            hovered_armor_pos = (0, 0)
+            
             for i, armor in enumerate(armor_visible):
                 row = i // armor_cols
                 col = i % armor_cols
                 x = 50 + col * 140  # Больше расстояние
                 y = 180 + row * 140  # Больше расстояние
+                
+                # Проверка наведения для тултипа
+                armor_rect = pygame.Rect(x, y, 120, 120)
+                if armor_rect.collidepoint(pygame.mouse.get_pos()):
+                    hovered_armor = armor
+                    hovered_armor_pos = pygame.mouse.get_pos()
+                
                 armor.draw(screen, x, y)
                 if equipped_armor == armor:
                     pygame.draw.rect(screen, GREEN, (x - 2, y - 2, 124, 124), 3)
@@ -245,6 +256,10 @@ class GameRenderer:
                 name = _ensure_fonts()['small'].render(name_text, True, WHITE)
                 name_x = x + (120 - name.get_width()) // 2
                 screen.blit(name, (name_x, y + 125))
+            
+            # Тултип при наведении
+            if hovered_armor:
+                GameRenderer._draw_armor_tooltip(screen, hovered_armor, hovered_armor_pos)
 
             # Индикатор скролла
             if len(inventory_armor) > 12:
@@ -256,86 +271,193 @@ class GameRenderer:
                 pygame.draw.rect(screen, GRAY, (SCREEN_WIDTH - 30, 180 + scroll_pos, 15, scroll_thumb_height), border_radius=5)
 
         elif current_tab == "smith":
-            # Кузница - объединение 3 одинаковых брони в улучшенную
+            # Кузница - две подвкладки: Рецепты и Крафт
             from modules.config import ARMOR_UPGRADES
-
-            smith_title = _ensure_fonts()['small'].render("Выберите 3 одинаковые брони для улучшения:", True, WHITE)
-            screen.blit(smith_title, (50, 180))
-
-            # Группируем брони по имени
-            armor_groups = {}
-            for armor in inventory_armor:
-                key = (armor.name, armor.tier)
-                if key not in armor_groups:
-                    armor_groups[key] = []
-                armor_groups[key].append(armor)
-
-            y_pos = 220
             
-            # Сначала показываем специальный рецепт: Броня тьмы
-            has_fire_plus = any(a.name == "Огненная броня+" and a.tier == 3 for a in inventory_armor)
-            has_water_plus = any(a.name == "Водяная броня+" and a.tier == 3 for a in inventory_armor)
-            has_ground_plus = any(a.name == "Земляная броня+" and a.tier == 3 for a in inventory_armor)
+            # Подвкладки
+            recipes_tab_rect = pygame.Rect(50, 170, 180, 35)
+            craft_tab_rect = pygame.Rect(240, 170, 180, 35)
             
-            if has_fire_plus and has_water_plus and has_ground_plus:
-                group_rect = pygame.Rect(50, y_pos, 700, 80)
-                pygame.draw.rect(screen, (60, 0, 90), group_rect, border_radius=8)
-                pygame.draw.rect(screen, (120, 0, 180), group_rect, 2, border_radius=8)
+            for rect, tab_name, is_active in [
+                (recipes_tab_rect, "Рецепты", smith_subtab == "recipes"),
+                (craft_tab_rect, "Крафт", smith_subtab == "craft")
+            ]:
+                color = GREEN if is_active else DARK_GRAY
+                pygame.draw.rect(screen, color, rect, border_radius=5)
+                pygame.draw.rect(screen, WHITE if is_active else GRAY, rect, 1, border_radius=5)
+                tab_text = _ensure_fonts()['small'].render(tab_name, True, WHITE)
+                text_x = rect.x + (rect.width - tab_text.get_width()) // 2
+                text_y = rect.y + (rect.height - tab_text.get_height()) // 2
+                screen.blit(tab_text, (text_x, text_y))
+            
+            if smith_subtab == "recipes":
+                # Подвкладка Рецепты - показываем известные рецепты
+                recipes_title = _ensure_fonts()['small'].render("Изученные рецепты:", True, WHITE)
+                screen.blit(recipes_title, (50, 220))
                 
-                group_text = _ensure_fonts()['medium'].render("Броня тьмы", True, (200, 100, 255))
-                screen.blit(group_text, (70, y_pos + 25))
+                # Подсчитываем общее количество рецептов
+                total_recipes = len(ARMOR_UPGRADES) + 1  # +1 для брони тьмы
+                visible_recipes = 5  # Сколько рецептов видно (уменьшили для больших размеров)
+                recipe_start = scroll
                 
-                recipe_text = _ensure_fonts()['small'].render("Огненная+ + Водяная+ + Земляная+ (100G)", True, LIGHT_GRAY)
-                screen.blit(recipe_text, (70, y_pos + 50))
+                # Все рецепты: обычные + броня тьмы в конце
+                recipe_items = list(ARMOR_UPGRADES.items())
+                # Добавляем броню тьмы в конец
+                recipe_items.append((("Броня тьмы", 5), ("Броня тьмы", 5, 8, "elemental", "armor_dark_5.png", "dark")))
                 
-                arrow_text = _ensure_fonts()['small'].render("-> Броня тьмы (T5)", True, (200, 100, 255))
-                screen.blit(arrow_text, (400, y_pos + 30))
+                # Сортируем по тиру результата (возрастание)
+                recipe_items.sort(key=lambda x: x[1][1])
                 
-                y_pos += 100
-
-            # Показываем группы с 3+ бронями (обычный крафт)
-            for (name, tier), armors in armor_groups.items():
-                if len(armors) >= 3:
-                    # Проверяем есть ли апгрейд
-                    upgrade_key = (name, tier)
-                    can_upgrade = upgrade_key in ARMOR_UPGRADES
-
-                    # Определяем стоимость
-                    if can_upgrade:
-                        upgrade_tier = ARMOR_UPGRADES[upgrade_key][1]
-                        if upgrade_tier == 5:
-                            cost = 100
-                        elif upgrade_tier == 4:
-                            cost = 50
-                        else:
-                            cost = 25
-                        cost_text = f"({cost}G)"
+                visible_items = recipe_items[recipe_start:recipe_start + visible_recipes]
+                
+                y_pos = 250
+                recipe_count = 0
+                
+                for (name, tier), upgrade_info in visible_items:
+                    upgrade_name = upgrade_info[0]
+                    
+                    # Определение цвета по типу получаемой брони
+                    if "Божественная" in upgrade_name:
+                        text_color = WHITE
+                        bg_color = (60, 60, 70)
+                        border_color = WHITE
+                    elif "Легендарная" in upgrade_name:
+                        text_color = GOLD
+                        bg_color = (60, 60, 50)
+                        border_color = GOLD
+                    elif "Броня тьмы" in upgrade_name:
+                        text_color = (200, 100, 255)
+                        bg_color = (60, 0, 90)
+                        border_color = (200, 100, 255)
+                    elif "Огненная" in upgrade_name and "+" in upgrade_name:
+                        text_color = RED
+                        bg_color = (70, 30, 30)
+                        border_color = RED
+                    elif "Водяная" in upgrade_name and "+" in upgrade_name:
+                        text_color = BLUE
+                        bg_color = (30, 30, 70)
+                        border_color = BLUE
+                    elif "Земляная" in upgrade_name and "+" in upgrade_name:
+                        text_color = (180, 120, 60)
+                        bg_color = (60, 50, 30)
+                        border_color = (180, 120, 60)
+                    elif "Усиленная" in upgrade_name:
+                        text_color = LIGHT_GRAY
+                        bg_color = (50, 50, 50)
+                        border_color = LIGHT_GRAY
                     else:
-                        cost_text = ""
-
-                    # Рисуем группу
-                    group_rect = pygame.Rect(50, y_pos, 700, 80)
-                    color = GREEN if can_upgrade else DARK_GRAY
-                    pygame.draw.rect(screen, color, group_rect, border_radius=8)
-                    pygame.draw.rect(screen, GOLD if can_upgrade else GRAY, group_rect, 2, border_radius=8)
-
-                    group_text = _ensure_fonts()['medium'].render(f"{name} x{len(armors)} {cost_text}", True, WHITE)
-                    screen.blit(group_text, (70, y_pos + 25))
-
-                    if can_upgrade:
-                        upgrade_info = ARMOR_UPGRADES[upgrade_key]
-                        upgrade_text = _ensure_fonts()['small'].render(f"-> {upgrade_info[0]}", True, GREEN)
-                        screen.blit(upgrade_text, (400, y_pos + 30))
-
-                    y_pos += 100
+                        text_color = WHITE
+                        bg_color = DARK_GRAY
+                        border_color = GOLD
+                    
+                    # Формируем строку рецепта
+                    if name == "Броня тьмы":
+                        recipe_str = f"{upgrade_name}(Огненная броня+ + Водяная броня+ + Земляная броня+)"
+                    else:
+                        recipe_str = f"{upgrade_name}({name} + {name} + {name})"
+                    
+                    # Прямоугольник для рецепта (по ширине и высоте)
+                    recipe_rect = pygame.Rect(30, y_pos, SCREEN_WIDTH - 60, 80)
+                    pygame.draw.rect(screen, bg_color, recipe_rect, border_radius=8)
+                    pygame.draw.rect(screen, border_color, recipe_rect, 2, border_radius=8)
+                    
+                    # Текст рецепта (меньший шрифт)
+                    recipe_text = _ensure_fonts()['small'].render(recipe_str, True, text_color)
+                    max_width = SCREEN_WIDTH - 100
+                    if recipe_text.get_width() > max_width:
+                        while recipe_text.get_width() > max_width and len(recipe_str) > 10:
+                            recipe_str = recipe_str[:-5] + "..."
+                            recipe_text = _ensure_fonts()['small'].render(recipe_str, True, text_color)
+                    screen.blit(recipe_text, (50, y_pos + 28))
+                    
+                    recipe_count += 1
+                    y_pos += 90
+                
+                # Скроллбар для рецептов
+                if total_recipes > visible_recipes:
+                    max_scroll = total_recipes - visible_recipes
+                    scroll_bar_height = 400
+                    scroll_thumb_height = max(40, scroll_bar_height * visible_recipes // total_recipes)
+                    scroll_pos = int(scroll * (scroll_bar_height - scroll_thumb_height) / max(max_scroll, 1))
+                    pygame.draw.rect(screen, DARK_GRAY, (SCREEN_WIDTH - 30, 220, 15, scroll_bar_height), border_radius=5)
+                    pygame.draw.rect(screen, GRAY, (SCREEN_WIDTH - 30, 220 + scroll_pos, 15, scroll_thumb_height), border_radius=5)
             
-            if y_pos == 220:
-                no_upgrades_text = _ensure_fonts()['small'].render("Нет брони для улучшения (нужно 3 одинаковые)", True, LIGHT_GRAY)
-                screen.blit(no_upgrades_text, (50, 220))
-
-        # Тултип брони
-        if armor_tooltip_visible and armor_tooltip_armor:
-            GameRenderer._draw_armor_tooltip(screen, armor_tooltip_armor, armor_tooltip_pos)
+            elif smith_subtab == "craft":
+                # Подвкладка Крафт - выбор брони и кнопка
+                craft_title = _ensure_fonts()['small'].render("Выберите 3 брони (клик):", True, WHITE)
+                screen.blit(craft_title, (50, 220))
+                
+                # Показываем выбранные брони
+                selected_count = len(selected_armor_for_craft)
+                selected_text = _ensure_fonts()['medium'].render(f"Выбрано: {selected_count}/3", True, 
+                                                                   GREEN if selected_count == 3 else YELLOW if selected_count > 0 else WHITE)
+                screen.blit(selected_text, (SCREEN_WIDTH - 270, 220))
+                
+                # Скролл для брони
+                armor_cols = 6
+                armor_start = scroll
+                armor_visible = inventory_armor[armor_start:armor_start + 12]
+                
+                hovered_armor = None
+                hovered_armor_pos = (0, 0)
+                
+                for i, armor in enumerate(armor_visible):
+                    row = i // armor_cols
+                    col = i % armor_cols
+                    x = 50 + col * 140
+                    y = 260 + row * 140
+                    
+                    # Проверка наведения для тултипа
+                    armor_rect = pygame.Rect(x, y, 120, 120)
+                    if armor_rect.collidepoint(pygame.mouse.get_pos()):
+                        hovered_armor = armor
+                        hovered_armor_pos = pygame.mouse.get_pos()
+                    
+                    # Подсветка если выбрана
+                    is_selected = armor in selected_armor_for_craft
+                    if is_selected:
+                        pygame.draw.rect(screen, GREEN, (x - 3, y - 3, 126, 126), 3, border_radius=5)
+                    
+                    armor.draw(screen, x, y)
+                    
+                    # Обрезаем название
+                    name_text = armor.name
+                    while len(name_text) > 8 and _ensure_fonts()['small'].render(name_text, True, WHITE).get_width() > 130:
+                        name_text = name_text[:-1]
+                    if name_text != armor.name:
+                        name_text = name_text + ".."
+                    name = _ensure_fonts()['small'].render(name_text, True, WHITE)
+                    name_x = x + (120 - name.get_width()) // 2
+                    screen.blit(name, (name_x, y + 125))
+                
+                # Тултип для наведенной брони
+                if hovered_armor:
+                    GameRenderer._draw_armor_tooltip(screen, hovered_armor, hovered_armor_pos)
+                
+                # Скроллбар
+                if len(inventory_armor) > 12:
+                    max_scroll = len(inventory_armor) - 12
+                    scroll_bar_height = 350
+                    scroll_thumb_height = max(30, scroll_bar_height * 12 // len(inventory_armor))
+                    scroll_pos = int(scroll * (scroll_bar_height - scroll_thumb_height) / max(max_scroll, 1))
+                    pygame.draw.rect(screen, DARK_GRAY, (SCREEN_WIDTH - 30, 220, 15, scroll_bar_height), border_radius=5)
+                    pygame.draw.rect(screen, GRAY, (SCREEN_WIDTH - 30, 220 + scroll_pos, 15, scroll_thumb_height), border_radius=5)
+                
+                # Кнопка крафта (поднята и увеличена)
+                craft_btn_rect = pygame.Rect(SCREEN_WIDTH // 2 - 150, 620, 250, 65)
+                pygame.draw.rect(screen, GREEN if selected_count == 3 else DARK_GRAY, craft_btn_rect, border_radius=10)
+                pygame.draw.rect(screen, WHITE, craft_btn_rect, 2, border_radius=10)
+                craft_btn_text = _ensure_fonts()['medium'].render("КРАФТ (50G)", True, WHITE)
+                screen.blit(craft_btn_text, (craft_btn_rect.x + (craft_btn_rect.width - craft_btn_text.get_width()) // 2,
+                                             craft_btn_rect.y + 20))
+                
+                # Кнопка очистки (также увеличена)
+                clear_btn_rect = pygame.Rect(SCREEN_WIDTH // 2 + 110, 620, 250, 65)
+                pygame.draw.rect(screen, RED, clear_btn_rect, border_radius=10)
+                pygame.draw.rect(screen, WHITE, clear_btn_rect, 2, border_radius=10)
+                clear_text = _ensure_fonts()['medium'].render("Очистить", True, WHITE)
+                screen.blit(clear_text, (clear_btn_rect.x + (clear_btn_rect.width - clear_text.get_width()) // 2,
+                                        clear_btn_rect.y + 20))
 
         # Кнопка возврата
         map_btn.draw(screen)
@@ -838,6 +960,8 @@ class GameRenderer:
         start_x = (SCREEN_WIDTH - total_width) // 2
         
         hovered_card = None
+        hovered_armor = None
+        hovered_armor_pos = (0, 0)
         
         for i, item in enumerate(treasure_items):
             x = start_x + i * item_width
@@ -860,10 +984,16 @@ class GameRenderer:
                 card_rect = pygame.Rect(x, 150, 150, 190)
                 if card_rect.collidepoint(pygame.mouse.get_pos()):
                     pygame.draw.rect(screen, WHITE, card_rect, 3)
+                    hovered_armor = armor
+                    hovered_armor_pos = pygame.mouse.get_pos()
 
         # Отрисовка тултипа для наведенной карты (поверх всех)
         if hovered_card:
             hovered_card._draw_tooltip(screen)
+        
+        # Тултип для наведенной брони
+        if hovered_armor:
+            GameRenderer._draw_armor_tooltip(screen, hovered_armor, hovered_armor_pos)
 
         # Подсказка
         msg = _ensure_fonts()['small'].render("Кликните чтобы забрать", True, WHITE)
@@ -1036,7 +1166,9 @@ class GameRenderer:
                         kwargs.get('armor_tooltip_pos', (0, 0)),
                         kwargs.get('armor_tooltip_armor', None),
                         kwargs.get('inventory_tab', 'cards'),
-                        kwargs.get('inventory_scroll', 0)),
+                        kwargs.get('inventory_scroll', 0),
+                        kwargs.get('smith_subtab', 'recipes'),
+                        kwargs.get('selected_armor_for_craft', [])),
             "PRE_BATTLE": lambda: GameRenderer.draw_pre_battle(screen,
                         kwargs.get('inventory_cards', []), kwargs.get('battle_hand', []),
                         kwargs.get('floor', 1)),
