@@ -1171,6 +1171,7 @@ class Game:
             gold_gained = 10 + self.floor * 2  # Обычные враги: 12, 14, 16...
         
         self.inv_mgr.gold += gold_gained
+        self.total_wins += 1  # Увеличиваем счётчик побед
         self.message = f"Победа! +{gold_gained} золота"
         # Сбрасываем блок между боями
         self.player_block = 0
