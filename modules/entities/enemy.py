@@ -51,8 +51,12 @@ class Enemy:
             pygame.draw.circle(screen, RED, (x + 60, y + 60), 50)
             pygame.draw.circle(screen, WHITE, (x + 60, y + 60), 50, 3)
             IconRenderer.draw_icon(screen, self.icon_type, x + 45, y + 45, 30)
-        name_text = _ensure_fonts()['medium'].render(self.name, True, RED)
-        screen.blit(name_text, (x + 60 - name_text.get_width() // 2, y + 130))
+        # Сокращение имени если длиннее 17 символов
+        display_name = self.name
+        if len(self.name) > 17:
+            display_name = self.name[:14] + "..."
+        name_text = _ensure_fonts()['medium'].render(display_name, True, RED)
+        screen.blit(name_text, (x + 55 - name_text.get_width() // 2, y + 130))
 
     def take_damage(self, amount: int, damage_type: str = "normal") -> int:
         """Применение урона (уже с учётом эффективности)"""

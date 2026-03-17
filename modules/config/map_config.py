@@ -1,10 +1,11 @@
 """Настройки карты и этапов"""
 # Этапы (регионы)
 STAGES = {
-    1: {"name": "Лес", "floors": range(1, 6), "theme": "forest"},
-    2: {"name": "Озеро", "floors": range(6, 11), "theme": "water"},
-    3: {"name": "Пещера", "floors": range(11, 16), "theme": "fire"},
-    4: {"name": "Кладбище", "floors": range(16, 21), "theme": "dark"},
+    1: {"name": "Гладиаторская арена", "floors": range(1, 6), "theme": "arena"},
+    2: {"name": "Лес", "floors": range(6, 11), "theme": "forest"},
+    3: {"name": "Озеро", "floors": range(11, 16), "theme": "water"},
+    4: {"name": "Пещера", "floors": range(16, 21), "theme": "fire"},
+    5: {"name": "Кладбище", "floors": range(21, 26), "theme": "dark"},
 }
 
 # Карта
@@ -22,6 +23,17 @@ MAP_NODE_TYPES = ["enemy", "shop", "treasure", "campfire", "boss"]
 # Каждая локация имеет своих врагов и босса
 # Формат: (имя, базовое_HP, базовый_урон_мин, базовый_урон_макс, иконка, тип_урона)
 LOCATIONS = {
+    "arena": {
+        "name": "Гладиаторская арена",
+        "theme": "arena",
+        "enemies": [
+            ("Гладиатор без оружия", 14, 2, 5, "gladiator_hands", "normal"),
+            ("Гладиатор со щитом", 18, 3, 6, "gladiator_shield", "normal"),
+            ("Гладиатор с мечом", 20, 4, 7, "gladiator_sword", "normal"),
+            ("Опытный гладиатор", 28, 5, 9, "gladiator_sword_shield", "normal"),
+        ],
+        "boss": ("Гладиатор-чемпион", 55, 7, 12, "gladiator_champion", "normal"),
+    },
     "forest": {
         "name": "Лес",
         "theme": "forest",
@@ -80,25 +92,30 @@ LOCATIONS = {
 def get_location_by_floor(floor: int) -> str:
     """Получить ключ локации по этажу"""
     if floor <= 5:
-        return "forest"
+        return "arena"
     elif floor <= 10:
-        return "water"
+        return "forest"
     elif floor <= 15:
+        return "water"
+    elif floor <= 20:
         return "fire"
     else:
         return "graveyard"
 
 def get_stage_by_floor(floor: int) -> int:
-    """Получить номер этапа (1-4) по этажу"""
+    """Получить номер этапа (1-5) по этажу"""
     if floor <= 5:
         return 1
     elif floor <= 10:
         return 2
     elif floor <= 15:
         return 3
-    else:
+    elif floor <= 20:
         return 4
+    else:
+        return 5
 
 def get_boss_floor(stage: int) -> int:
     """Получить этаж босса для этапа"""
+    # Этап 1: босс на 5, этап 2: босс на 10, и т.д.
     return stage * 5

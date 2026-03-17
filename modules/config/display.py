@@ -33,7 +33,7 @@ UI_POSITIONS = {
     'enemy_hp': (680, 50),
     'start_btn_center': SCREEN_WIDTH // 2,
     'restart_btn_center': SCREEN_WIDTH // 2,
-    'dice_zone': (150, 220, 700, 140),
+    'dice_zone': (75, 220, 785, 140),
     'card_zone': (80, 480, 1040, 220),
     'end_turn_btn': (920, 350, 180, 50),
     'turn_text': (920, 310),

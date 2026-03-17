@@ -2,7 +2,7 @@
 # Базовые статы
 PLAYER_MAX_HP = 25
 DICE_COUNT = 2
-MAX_FLOOR = 20
+MAX_FLOOR = 25
 FLOOR_HEAL = 3
 CARDS_PER_TURN = 5
 
@@ -28,7 +28,7 @@ UPGRADE_COSTS = {0: 20, 1: 40, 2: 70}
 REWARD_CHANCES = {0: 40, 1: 40, 2: 20}
 
 # Боссы
-BOSS_FLOORS = [5, 10, 15]
+BOSS_FLOORS = [5, 10, 15, 20]
 
 # UI настройки
 BUTTON_TEXT_PADDING = 20

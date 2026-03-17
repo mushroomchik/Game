@@ -133,13 +133,15 @@ class GameRenderer:
     def _get_stage_name(floor: int) -> str:
         """Получение названия этапа по этажу"""
         if floor <= 5:
-            return "Лесной регион (1-5)"
+            return "Гладиаторская арена (1-5)"
         elif floor <= 10:
-            return "Озерный регион (6-10)"
+            return "Лесной регион (6-10)"
         elif floor <= 15:
-            return "Огненная пещера (11-15)"
+            return "Озерный регион (11-15)"
+        elif floor <= 20:
+            return "Огненная пещера (16-20)"
         else:
-            return "Кладбище (16-20)"
+            return "Кладбище (21-25)"
 
     @staticmethod
     def _draw_map_legend(screen):
