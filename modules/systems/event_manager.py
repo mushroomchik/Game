@@ -89,12 +89,12 @@ class EventManager:
         if is_devil_shop:
             return [
                 {"type": "devil_shop", "name": "Магазин", "icon": None},
-                {"type": "treasure", "name": "Снаряжение", "icon": None},
+                {"type": "treasure", "name": "Сокровищница", "icon": None},
                 {"type": "campfire", "name": "Костер", "icon": None}
             ]
         else:
             return [
                 {"type": "shop", "name": "Магазин", "icon": None},
-                {"type": "treasure", "name": "Снаряжение", "icon": None},
+                {"type": "treasure", "name": "Сокровищница", "icon": None},
                 {"type": "campfire", "name": "Костер", "icon": None}
             ]

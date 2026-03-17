@@ -17,9 +17,13 @@ class Armor:
         self.armor_type, self.element = armor_type, element
         self.asset_path = asset_path
         self.image = None
-        self._load_image()
+        self.image_size = None  # Храним размер текущей картинки
+        self._load_image(120)
 
-    def _load_image(self):
+    def _load_image(self, size=120):
+        # Если картинка уже загружена с нужным размером - не перезагружаем
+        if self.image is not None and self.image_size == size:
+            return
         # Пробуем разные пути для картинок
         possible_paths = [
             f"assets/images/{self.asset_path}" if self.asset_path else None,
@@ -28,18 +32,20 @@ class Armor:
         for path in possible_paths:
             if path and os.path.exists(path):
                 try:
-                    self.image = pygame.transform.scale(pygame.image.load(path), (120, 120))
+                    self.image = pygame.transform.scale(pygame.image.load(path), (size, size))
+                    self.image_size = size
                     break
                 except:
                     self.image = None
 
-    def draw(self, screen, x, y):
+    def draw(self, screen, x, y, size=120):
+        self._load_image(size)
         if self.image:
             screen.blit(self.image, (x, y))
         else:
             color = GOLD if self.tier == 4 else BLUE if self.tier >= 2 else GRAY
-            pygame.draw.rect(screen, color, (x, y, 120, 120), border_radius=5)
-            pygame.draw.rect(screen, WHITE, (x, y, 120, 120), 2, border_radius=5)
+            pygame.draw.rect(screen, color, (x, y, size, size), border_radius=5)
+            pygame.draw.rect(screen, WHITE, (x, y, size, size), 2, border_radius=5)
 
     def get_effect_text(self) -> str:
         if self.armor_type == "elemental" and self.element:
@@ -51,5 +57,5 @@ class Armor:
             return f"Защита: {self.defense} | Стихия: {elem_name}"
         return f"Защита: {self.defense}"
 
-    def is_clicked(self, pos, x, y) -> bool:
-        return x <= pos[0] <= x + 120 and y <= pos[1] <= y + 120
+    def is_clicked(self, pos, x, y, size=120) -> bool:
+        return x <= pos[0] <= x + size and y <= pos[1] <= y + size

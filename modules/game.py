@@ -965,12 +965,13 @@ class Game:
             item_width = 200  # Больше для крупной брони
             total_width = item_count * item_width
             start_x = (SCREEN_WIDTH - total_width) // 2
+            item_y = 250  # Сдвинуто вниз как в рендере
             for i, item in enumerate(self.treasure_items):
                 x = start_x + i * item_width
                 if item["type"] == "card":
-                    item_rect = pygame.Rect(x, 150, 150, 200)
+                    item_rect = pygame.Rect(x, item_y, 150, 200)
                 else:
-                    item_rect = pygame.Rect(x, 120, 200, 200)  # Больше для брони
+                    item_rect = pygame.Rect(x, item_y, 150, 150)  # 150x150 для брони
                 if item_rect.collidepoint(pos):
                     if item["type"] == "card":
                         from modules.cards import AbilityCard

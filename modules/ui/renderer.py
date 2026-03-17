@@ -557,7 +557,7 @@ class GameRenderer:
         screen.blit(dice_text, (140, 115))
 
         # === ПОЛЕ БОЯ ===
-        GameRenderer._draw_battle_field(screen, dice_list, battle_hand)
+        hovered_card = GameRenderer._draw_battle_field(screen, dice_list, battle_hand)
 
         # === КНОПКА И ХОД ===
         end_turn_btn.draw(screen)
@@ -578,9 +578,6 @@ class GameRenderer:
             current_enemy.draw(screen, UI_POSITIONS['enemy_icon'][0],
                              UI_POSITIONS['enemy_icon'][1])
 
-            if enemy_info_visible:
-                GameRenderer._draw_enemy_tooltip(screen, current_enemy, enemy_info_pos)
-
         # === СООБЩЕНИЕ ===
         if message:
             msg_surf = _ensure_fonts()['small'].render(message, True, WHITE)
@@ -590,9 +587,17 @@ class GameRenderer:
                            border_radius=5)
             screen.blit(msg_surf, (SCREEN_WIDTH // 2 - msg_surf.get_width() // 2, 735))
 
+        # === ТУЛТИП ВРАГА (поверх всего) ===
+        if current_enemy and enemy_info_visible:
+            GameRenderer._draw_enemy_tooltip(screen, current_enemy, enemy_info_pos)
+        
+        # === ТУЛТИП КАРТЫ (поверх всего) ===
+        if hovered_card:
+            hovered_card._draw_tooltip(screen)
+
     @staticmethod
     def _draw_battle_field(screen, dice_list: list, battle_hand: list):
-        """Отрисовка поля боя (кубики + карты)"""
+        """Отрисовка поля боя (кубики + карты). Возвращает заhoverенную карту."""
         # Зона кубиков
         pygame.draw.rect(screen, CARD_BG, pygame.Rect(*UI_POSITIONS['dice_zone']), border_radius=10)
         pygame.draw.rect(screen, CARD_BORDER, pygame.Rect(*UI_POSITIONS['dice_zone']), 2, border_radius=10)
@@ -606,11 +611,18 @@ class GameRenderer:
         pygame.draw.rect(screen, CARD_BORDER, pygame.Rect(*UI_POSITIONS['card_zone']), 2, border_radius=10)
         card_label = _ensure_fonts()['small'].render("Карты (клик после кубика)", True, LIGHT_GRAY)
         screen.blit(card_label, (UI_POSITIONS['card_zone'][0] + 10, UI_POSITIONS['card_zone'][1] - 25))
+        
+        # Отрисовка карт без тултипов, запоминаем заhoverенную
+        hovered_card = None
         card_start_x = UI_POSITIONS['card_zone'][0] + 15
         for i, card in enumerate(battle_hand[:5]):
             card.set_position(card_start_x + i * 165, UI_POSITIONS['card_zone'][1] + 10)
             card.check_hover(get_mouse_pos())
-            card.draw(screen)
+            if card.hovered:
+                hovered_card = card
+            card.draw(screen, draw_tooltip=False)
+        
+        return hovered_card
 
     @staticmethod
     def _draw_enemy_tooltip(screen, enemy, pos: tuple):
@@ -954,15 +966,16 @@ class GameRenderer:
         screen.blit(overlay, (0, 0))
 
         # Заголовок (с центрированием)
-        title = _ensure_fonts()['large'].render("Снаряжение", True, GOLD)
+        title = _ensure_fonts()['large'].render("Сокровищница", True, GOLD)
         title_x = (SCREEN_WIDTH - title.get_width()) // 2
         screen.blit(title, (title_x, 50))
 
-        # Предметы - по центру с учётом количества
+        # Предметы - по центру с учётом количества, смещены вниз
         item_count = len(treasure_items)
         item_width = 200  # Ширина как у карты + отступ
         total_width = item_count * item_width
         start_x = (SCREEN_WIDTH - total_width) // 2
+        item_y = 250  # Сдвинули ниже
         
         hovered_card = None
         hovered_armor = None
@@ -973,7 +986,7 @@ class GameRenderer:
             if item["type"] == "card":
                 from modules.cards import AbilityCard
                 card = AbilityCard(*item["data"])
-                card.set_position(x, 150)
+                card.set_position(x, item_y)
                 card.check_hover(get_mouse_pos())
                 if card.hovered:
                     hovered_card = card
@@ -982,11 +995,12 @@ class GameRenderer:
                 from modules.entities import Armor
                 d = item["data"]
                 tier = d.get("tier", 1)
-                # Рисуем броню такого же размера как карта (150x190)
+                # Окошко и картинка брони 150x150 (такой же размер как у карты)
+                armor_size = 150
                 armor = Armor(d["name"], tier, d["defense"], d.get("type", "normal"), d.get("asset"), d.get("element"))
-                armor.draw(screen, x, 150)
-                # Подсветка при наведении (как у карты)
-                card_rect = pygame.Rect(x, 150, 150, 190)
+                armor.draw(screen, x, item_y, armor_size)
+                # Подсветка при наведении
+                card_rect = pygame.Rect(x, item_y, armor_size, armor_size)
                 mouse_pos = get_mouse_pos()
                 if card_rect.collidepoint(mouse_pos):
                     pygame.draw.rect(screen, WHITE, card_rect, 3)
@@ -1000,10 +1014,6 @@ class GameRenderer:
         # Тултип для наведенной брони
         if hovered_armor:
             GameRenderer._draw_armor_tooltip(screen, hovered_armor, hovered_armor_pos)
-
-        # Подсказка
-        msg = _ensure_fonts()['small'].render("Кликните чтобы забрать", True, WHITE)
-        screen.blit(msg, (SCREEN_WIDTH // 2 - msg.get_width() // 2, 500))
 
     # =========================================================================
     # === КОСТЁР ===
@@ -1050,29 +1060,31 @@ class GameRenderer:
         # Заголовок (с центрированием)
         title = _ensure_fonts()['large'].render("Выберите следующее событие", True, GOLD)
         title_x = (SCREEN_WIDTH - title.get_width()) // 2
-        screen.blit(title, (title_x, 100))
+        screen.blit(title, (title_x, 80))
 
-        # Карточки событий (центрируем по количеству)
-        card_width = 220
+        # Карточки событий (центрируем по количеству) - увеличенные
+        card_width = 350
+        card_height = 320
         card_count = len(event_choices)
         total_width = card_count * card_width
         start_x = (SCREEN_WIDTH - total_width) // 2
+        card_y = 180  # Немного выше для большего окошка
         
         for i, event in enumerate(event_choices):
             x = start_x + i * card_width
-            rect = pygame.Rect(x, 250, card_width, 200)
+            rect = pygame.Rect(x, card_y, card_width, card_height)
 
             # Фон карточки
-            pygame.draw.rect(screen, CARD_BG, rect, border_radius=10)
+            pygame.draw.rect(screen, CARD_BG, rect, border_radius=15)
             # Красная рамка для дьявольского магазина
             border_color = RED if event["type"] == "devil_shop" else GOLD
-            pygame.draw.rect(screen, border_color, rect, 3, border_radius=10)
+            pygame.draw.rect(screen, border_color, rect, 4, border_radius=15)
 
             # Иконка (центрирована, если есть)
             if event.get("icon"):
                 icon = _ensure_fonts()['large'].render(event["icon"], True, WHITE)
                 icon_x = x + (card_width - icon.get_width()) // 2
-                screen.blit(icon, (icon_x, 270))
+                screen.blit(icon, (icon_x, card_y + 30))
 
             # Название (центрировано и с переносом если нужно)
             # Красное название для дьявольского магазина
@@ -1080,7 +1092,7 @@ class GameRenderer:
             name_color = RED if event["type"] == "devil_shop" else WHITE
             name = _ensure_fonts()['medium'].render(name_text, True, name_color)
             name_x = x + (card_width - name.get_width()) // 2
-            screen.blit(name, (name_x, 350))
+            screen.blit(name, (name_x, card_y + 180))
 
             # Подсказка при наведении
             mouse_pos = get_mouse_pos()
