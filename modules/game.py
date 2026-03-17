@@ -1499,7 +1499,10 @@ class Game:
 
     def _update(self):
         """Обновление состояния"""
-        if self.message_timer > 0: self.message_timer -= 1
+        if self.message_timer > 0:
+            self.message_timer -= 1
+        else:
+            self.message = ""  # Очистка сообщения когда таймер истёк
         self.particles.update()
         # Обновление таймеров визуальных эффектов
         if self.heal_flash_timer > 0: self.heal_flash_timer -= 1
