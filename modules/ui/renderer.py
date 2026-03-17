@@ -1167,7 +1167,7 @@ class GameRenderer:
         next_floor_btn.draw(screen)
 
     # =========================================================================
-    # === ОРУЖЕЙНЯ ===
+    # === ОРУЖЕЙНАЯ ===
     # =========================================================================
     @staticmethod
     def draw_armory(screen, shop_armor: list, inventory_armor: list, gold: int,
@@ -1181,7 +1181,7 @@ class GameRenderer:
         screen.blit(overlay, (0, 0))
 
         # Заголовок (синий цвет для оружейни)
-        title = _ensure_fonts()['large'].render("ОРУЖЕЙНЯ", True, BLUE)
+        title = _ensure_fonts()['large'].render("ОРУЖЕЙНАЯ", True, BLUE)
         title_x = (SCREEN_WIDTH - title.get_width()) // 2
         screen.blit(title, (title_x, 80))
 

@@ -99,7 +99,7 @@ class Game:
         self.heal_flash_timer = 0
         self.hero_damage_flash_timer = 0
         self.enemy_damage_flash_timer = 0
-        # Оружейня
+        # Оружейная
         self.armory_cards = []  # Броня в оружейне на продажу
         self.is_armory = False  # Флаг оружейни
         self.armory_buttons = {}  # Кнопки оружейни
@@ -362,7 +362,6 @@ class Game:
                 # Перетаскивание скроллбара в меню врагов
                 elif self.game_state == "MAP" and hasattr(self, 'test_enemy_dragging_scroll') and self.test_enemy_dragging_scroll:
                     menu_x, menu_y = SCREEN_WIDTH - 290, 150
-                    menu_w = 270
                     item_h = 35
                     visible_count = 8
                     scroll_bar_h = visible_count * item_h
@@ -396,10 +395,10 @@ class Game:
                 visible_count = 8
                 max_scroll = max(0, len(self.test_enemies) - visible_count)
                 
-                # Скроллбар имеет приоритет
+                # Скроллбар имеет приоритет (справа)
                 if len(self.test_enemies) > visible_count:
-                    scroll_x = menu_x + menu_w - 15
-                    scroll_rect = pygame.Rect(scroll_x, menu_y, 8, visible_count * item_h)
+                    scroll_x = menu_x + 250
+                    scroll_rect = pygame.Rect(scroll_x, menu_y, 12, visible_count * item_h)
                     if scroll_rect.collidepoint(pos):
                         self.test_enemy_dragging_scroll = True
                         relative_y = (pos[1] - menu_y) / (visible_count * item_h)
@@ -407,10 +406,10 @@ class Game:
                         self.test_enemy_scroll = max(0, min(self.test_enemy_scroll, max_scroll))
                         return
                 
-                # Клик по врагам
+                # Клик по врагам (ширина 250 чтобы не залезать на скроллбар)
                 for i in range(self.test_enemy_scroll, min(self.test_enemy_scroll + visible_count, len(self.test_enemies))):
                     enemy = self.test_enemies[i]
-                    btn_rect = pygame.Rect(menu_x, menu_y + (i - self.test_enemy_scroll) * item_h, menu_w, item_h)
+                    btn_rect = pygame.Rect(menu_x, menu_y + (i - self.test_enemy_scroll) * item_h, 250, item_h)
                     if btn_rect.collidepoint(pos):
                         self.next_enemy = Enemy(
                             name=enemy["name"], hp=enemy["hp"], damage_range=enemy["dmg"],
@@ -1028,7 +1027,7 @@ class Game:
                 if self.inv_mgr.gold >= 25:
                     self.inv_mgr.gold -= 25
                     self.armory_cards = self.event_mgr.generate_armor_shop()
-                    self.message = "Оружейня обновлена!"
+                    self.message = "Оружейная обновлена!"
                     self.message_timer = 60
                 else:
                     self.message = "Нужно 25G!"
@@ -1571,11 +1570,20 @@ class Game:
                 pygame.draw.rect(screen, WHITE, menu_bg, 2, border_radius=5)
                 for i in range(self.test_enemy_scroll, min(self.test_enemy_scroll + visible_count, len(self.test_enemies))):
                     enemy = self.test_enemies[i]
-                    btn_rect = pygame.Rect(menu_x, menu_y + (i - self.test_enemy_scroll) * item_h, 270, item_h)
+                    btn_rect = pygame.Rect(menu_x, menu_y + (i - self.test_enemy_scroll) * item_h, 250, item_h)
                     color = RED if enemy["enemy_type"] == "boss" else (YELLOW if enemy["enemy_type"] == "spirit" else WHITE)
                     pygame.draw.rect(screen, color if btn_rect.collidepoint(self.mouse_pos()) else DARK_BLUE, btn_rect, border_radius=3)
                     text = _ensure_fonts()['tiny'].render(enemy["name"], True, WHITE)
                     screen.blit(text, (menu_x + 10, menu_y + (i - self.test_enemy_scroll) * item_h + 10))
+                # Скроллбар
+                if len(self.test_enemies) > visible_count:
+                    max_scroll = len(self.test_enemies) - visible_count
+                    scroll_bar_h = menu_h - 10
+                    scroll_thumb_h = max(20, scroll_bar_h * visible_count // len(self.test_enemies))
+                    scroll_pos = int(self.test_enemy_scroll * (scroll_bar_h - scroll_thumb_h) / max_scroll)
+                    scroll_x = menu_x + 250
+                    pygame.draw.rect(screen, LIGHT_GRAY, (scroll_x, menu_y + 5, 8, scroll_bar_h), border_radius=3)
+                    pygame.draw.rect(screen, WHITE, (scroll_x, menu_y + 5 + scroll_pos, 8, scroll_thumb_h), border_radius=3)
             # Меню чит-кнопки
             self.cheat_btn.draw(screen)
             if self.cheat_menu_visible:

@@ -144,7 +144,7 @@ class EventManager:
         elif rand < 0.3:
             # 20% оружейня
             return [
-                {"type": "armory", "name": "Оружейня", "icon": None},
+                {"type": "armory", "name": "Оружейная", "icon": None},
                 {"type": "treasure", "name": "Сокровищница", "icon": None},
                 {"type": "campfire", "name": "Костер", "icon": None}
             ]
