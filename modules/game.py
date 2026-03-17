@@ -99,6 +99,11 @@ class Game:
         self.heal_flash_timer = 0
         self.hero_damage_flash_timer = 0
         self.enemy_damage_flash_timer = 0
+        # Оружейня
+        self.armory_cards = []  # Броня в оружейне на продажу
+        self.is_armory = False  # Флаг оружейни
+        self.armory_buttons = {}  # Кнопки оружейни
+        self.selected_armor_upgrade = None  # Выбранная броня для продажи
         # Тестовая кнопка убийства врага
         self.kill_enemy_btn = Button(SCREEN_WIDTH - 150, 650, 130, 40, "[TEST] Убить", RED)
         # Тестовая кнопка выбора врага
@@ -250,6 +255,10 @@ class Game:
                     visible_cards = cards_per_row * visible_rows
                     max_scroll = max(0, len(self.inventory_cards) - visible_cards)
                     self.inventory_scroll = max(0, min(self.inventory_scroll - event.y, max_scroll))
+                elif self.game_state == "ARMORY":
+                    # Скролл инвентаря в оружейне
+                    max_scroll = max(0, len(self.inventory_armor) - 12)
+                    self.inventory_scroll = max(0, min(self.inventory_scroll - event.y, max_scroll))
             elif event.type == pygame.KEYDOWN:
                 if self.game_state == "MAP" and self.test_enemy_menu_visible:
                     if event.key == pygame.K_DOWN or event.key == pygame.K_s:
@@ -312,6 +321,17 @@ class Game:
                         
                         if max_items > visible:
                             max_scroll = max_items - visible
+                            relative_y = (pos[1] - scroll_bar_y) / scroll_bar_height
+                            self.inventory_scroll = int(relative_y * max_scroll)
+                            self.inventory_scroll = max(0, min(self.inventory_scroll, max_scroll))
+
+                    elif self.game_state == "ARMORY":
+                        scroll_bar_y = 460
+                        scroll_bar_height = 200
+                        max_items = len(self.inventory_armor)
+
+                        if max_items > 12:
+                            max_scroll = max_items - 12
                             relative_y = (pos[1] - scroll_bar_y) / scroll_bar_height
                             self.inventory_scroll = int(relative_y * max_scroll)
                             self.inventory_scroll = max(0, min(self.inventory_scroll, max_scroll))
@@ -946,6 +966,88 @@ class Game:
                         self.selected_upgrade_card = i
                     return
             return
+        elif self.game_state == "ARMORY":
+            # Оружейня - покупка и продажа брони
+            # Кнопка "На карту"
+            if self.map_btn.is_clicked(pos):
+                self.map_mgr.generate(self.floor)
+                self.map_nodes = self.map_mgr.nodes
+                self.next_enemy = self._create_enemy(self.floor)
+                self.game_state = "MAP"
+                return
+
+            # Клик по броне в оружейне - покупка
+            for i, armor in enumerate(self.armory_cards):
+                armor_rect = pygame.Rect(150 + i * 200, 210, 150, 150)
+                if armor_rect.collidepoint(pos):
+                    if self.inv_mgr.gold >= armor.price:
+                        self.inv_mgr.gold -= armor.price
+                        self.inv_mgr.armor.append(armor)
+                        self.inventory_armor = self.inv_mgr.armor
+                        self.armory_cards.remove(armor)
+                        self.message = f"Куплено: {armor.name} за {armor.price}G!"
+                        self.message_timer = 60
+                    else:
+                        self.message = "Недостаточно золота!"
+                        self.message_timer = 60
+                    return
+
+            # Клик по броне в инвентаре - продажа
+            armor_cols = 6
+            armor_start = self.inventory_scroll
+            armor_visible = self.inventory_armor[armor_start:armor_start + 12]
+            for i, armor in enumerate(armor_visible):
+                row = i // armor_cols
+                col = i % armor_cols
+                x = 50 + col * 140
+                y = 460 + row * 200
+                armor_rect = pygame.Rect(x, y, 120, 120)
+                if armor_rect.collidepoint(pos):
+                    actual_index = armor_start + i
+                    armor_obj = self.inventory_armor[actual_index]
+                    # Продажа
+                    from modules.systems.event_manager import ARMOR_SELL_PRICES
+                    sell_price = ARMOR_SELL_PRICES.get(armor_obj.tier, 0)
+                    if sell_price > 0:
+                        self.inv_mgr.gold += sell_price
+                        self.inventory_armor.pop(actual_index)
+                        self.inv_mgr.armor = self.inventory_armor
+                        # Если продана экипированная - снять
+                        if self.equipped_armor == armor_obj:
+                            self.equipped_armor = None
+                            self.inv_mgr.equipped_armor = None
+                        self.message = f"Продано: {armor_obj.name} за {sell_price}G!"
+                        self.message_timer = 60
+                    else:
+                        self.message = "Эту броню нельзя продать!"
+                        self.message_timer = 60
+                    return
+
+            # Кнопка "Обновить"
+            if self.armory_buttons.get('refresh') and self.armory_buttons['refresh'].is_clicked(pos):
+                if self.inv_mgr.gold >= 25:
+                    self.inv_mgr.gold -= 25
+                    self.armory_cards = self.event_mgr.generate_armor_shop()
+                    self.message = "Оружейня обновлена!"
+                    self.message_timer = 60
+                else:
+                    self.message = "Нужно 25G!"
+                    self.message_timer = 60
+                return
+
+            # Скролл инвентаря
+            scroll_bar_x = SCREEN_WIDTH - 30
+            scroll_bar_y = 460
+            scroll_bar_height = 200
+            if len(self.inventory_armor) > 12:
+                scroll_rect = pygame.Rect(scroll_bar_x, scroll_bar_y, 15, scroll_bar_height)
+                if scroll_rect.collidepoint(pos):
+                    max_scroll = len(self.inventory_armor) - 12
+                    relative_y = (pos[1] - scroll_bar_y) / scroll_bar_height
+                    self.inventory_scroll = int(relative_y * max_scroll)
+                    self.inventory_scroll = max(0, min(self.inventory_scroll, max_scroll))
+                    self.dragging_scroll = True
+            return
         elif self.game_state == "CAMPFIRE":
             # Клик по кнопке "Дальше" (координаты как в рендере)
             btn_rect = pygame.Rect(SCREEN_WIDTH // 2 - 100, 450, 200, 60)
@@ -1032,14 +1134,16 @@ class Game:
             if self.turn_mgr.is_player_turn():
                 self._handle_battle_click(pos)
         elif self.game_state == "EVENT_CHOICE":
-            # Центрирование как в рендере
-            card_width = 220
+            # Центрирование как в рендере (размеры как в draw_event_choice)
+            card_width = 350
+            card_height = 320
             card_count = len(self.event_choices)
             total_width = card_count * card_width
             start_x = (SCREEN_WIDTH - total_width) // 2
+            card_y = 180  # Как в рендере
             for i, event in enumerate(self.event_choices):
                 x = start_x + i * card_width
-                rect = pygame.Rect(x, 250, card_width, 200)
+                rect = pygame.Rect(x, card_y, card_width, card_height)
                 if rect.collidepoint(pos):
                     if event["type"] == "shop":
                         self.shop_cards = self.event_mgr.generate_shop_cards()
@@ -1052,6 +1156,11 @@ class Game:
                         self.devil_shop_refreshed = False
                         self._init_shop_state(self.is_devil_shop)
                         self.game_state = "SHOP"
+                    elif event["type"] == "armory":
+                        self.armory_cards = self.event_mgr.generate_armor_shop()
+                        self.is_armory = True
+                        self._init_armory_state()
+                        self.game_state = "ARMORY"
                     elif event["type"] == "treasure":
                         self.treasure_items = self.event_mgr.generate_treasure()
                         self.game_state = "TREASURE"
@@ -1061,6 +1170,8 @@ class Game:
                         self.player_health = HealthBar(UI_POSITIONS['hero_hp'][0], UI_POSITIONS['hero_hp'][1],
                                                        200, 30, self.player_max_hp, GREEN)
                         self.message = "HP полностью восстановлено! Макс HP +10"
+                        self.message_timer = 120
+                        self.game_state = "CAMPFIRE"
                         self.message_timer = 120
                         self.game_state = "CAMPFIRE"
                     # После посещения - переход к следующему бою
@@ -1161,6 +1272,15 @@ class Game:
             'sell': Button(SCREEN_WIDTH // 2 - 60, btn_y, 120, 40, "Продать", ORANGE),
             'cancel': Button(SCREEN_WIDTH // 2 + 70, btn_y, 120, 40, "Отмена", RED),
             'refresh': Button(SCREEN_WIDTH - 170, 170, 150, 40, refresh_text, CYAN),
+        }
+
+    def _init_armory_state(self):
+        """Инициализация состояния оружейни"""
+        self.inventory_armor = self.inv_mgr.armor
+        self.selected_armor_upgrade = None
+        # Кнопки
+        self.armory_buttons = {
+            'refresh': Button(SCREEN_WIDTH - 170, 170, 150, 40, "Обновить (25G)", CYAN),
         }
 
     def _enemy_defeated(self):
@@ -1615,6 +1735,21 @@ class Game:
             )
 
             # УБРАНО: нижняя кнопка to_map_btn - теперь только map_btn сверху
+
+        elif self.game_state == "ARMORY":
+            # Обновляем данные
+            self.inventory_armor = self.inv_mgr.armor
+            self.gold = self.inv_mgr.gold
+            GameRenderer.draw_armory(
+                screen,
+                self.armory_cards,
+                self.inventory_armor,
+                self.gold,
+                self.armory_buttons,
+                self.message,
+                self.inventory_scroll,
+                self.map_btn
+            )
 
         elif self.game_state == "TREASURE":
             GameRenderer.draw_treasure(

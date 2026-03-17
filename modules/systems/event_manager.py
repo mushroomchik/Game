@@ -1,11 +1,28 @@
 """События: награды, выбор"""
 import random
-from modules.config import (TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_4_CARDS, 
+from modules.config import (TIER_0_CARDS, TIER_1_CARDS, TIER_2_CARDS, TIER_4_CARDS,
                             REWARD_CHANCES, SHOP_CARDS, ARMOR_TIERS,
                             TIER_DARK_T2_CARDS, TIER_DARK_T3_CARDS, TIER_DARK_T4_CARDS,
                             DEVIL_SHOP_TIER_CHANCES)
 from modules.cards import AbilityCard
 from modules.entities import Armor
+
+
+# Цены на броню в оружейне
+ARMOR_SHOP_PRICES = {
+    1: 30,  # Tier 1 = 30G
+    2: 50,  # Tier 2 = 50G
+}
+
+# Цены продажи брони
+ARMOR_SELL_PRICES = {
+    1: 10,
+    2: 20,
+    3: 30,
+    4: 0,  # Не продаётся
+    5: 0,  # Не продаётся
+}
+
 
 class EventManager:
     @staticmethod
@@ -81,18 +98,58 @@ class EventManager:
         return items
 
     @staticmethod
-    def get_event_choices() -> list[dict]:
-        """Получение списка событий для выбора (обычный магазин или дьявольский)"""
-        # 10% шанс на дьявольский магазин вместо обычного
-        is_devil_shop = random.random() < 0.1
+    def generate_armor_shop() -> list[Armor]:
+        """Генерация брони для оружейни (3 предмета, 70% T1, 30% T2)"""
+        armors = []
         
-        if is_devil_shop:
+        for _ in range(3):
+            # 70% шанс тир 1, 30% шанс тир 2
+            if random.random() < 0.7:
+                tier = 1
+            else:
+                tier = 2
+            
+            armor_data = ARMOR_TIERS[tier]
+            if isinstance(armor_data, list):
+                data = random.choice(armor_data)
+            else:
+                data = armor_data
+            
+            armor = Armor(
+                name=data["name"],
+                tier=tier,
+                defense=data["defense"],
+                armor_type=data.get("type", "normal"),
+                asset_path=data.get("asset"),
+                element=data.get("element")
+            )
+            armor.price = ARMOR_SHOP_PRICES[tier]
+            armors.append(armor)
+        
+        return armors
+
+    @staticmethod
+    def get_event_choices() -> list[dict]:
+        """Получение списка событий для выбора (обычный магазин, оружейня или дьявольский)"""
+        # 10% - дьявольский магазин, 20% - оружейня, 70% - обычный магазин
+        rand = random.random()
+        
+        if rand < 0.1:
+            # 10% дьявольский магазин
             return [
                 {"type": "devil_shop", "name": "Магазин", "icon": None},
                 {"type": "treasure", "name": "Сокровищница", "icon": None},
                 {"type": "campfire", "name": "Костер", "icon": None}
             ]
+        elif rand < 0.3:
+            # 20% оружейня
+            return [
+                {"type": "armory", "name": "Оружейня", "icon": None},
+                {"type": "treasure", "name": "Сокровищница", "icon": None},
+                {"type": "campfire", "name": "Костер", "icon": None}
+            ]
         else:
+            # 70% обычный магазин
             return [
                 {"type": "shop", "name": "Магазин", "icon": None},
                 {"type": "treasure", "name": "Сокровищница", "icon": None},

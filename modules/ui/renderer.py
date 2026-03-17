@@ -1076,8 +1076,13 @@ class GameRenderer:
 
             # Фон карточки
             pygame.draw.rect(screen, CARD_BG, rect, border_radius=15)
-            # Красная рамка для дьявольского магазина
-            border_color = RED if event["type"] == "devil_shop" else GOLD
+            # Цвет рамки: красный для адского магазина, синий для оружейни, золото для остальных
+            if event["type"] == "devil_shop":
+                border_color = RED
+            elif event["type"] == "armory":
+                border_color = BLUE
+            else:
+                border_color = GOLD
             pygame.draw.rect(screen, border_color, rect, 4, border_radius=15)
 
             # Иконка (центрирована, если есть)
@@ -1087,9 +1092,14 @@ class GameRenderer:
                 screen.blit(icon, (icon_x, card_y + 30))
 
             # Название (центрировано и с переносом если нужно)
-            # Красное название для дьявольского магазина
+            # Цвет названия: красный для адского магазина, синий для оружейни, белый для остальных
             name_text = event["name"]
-            name_color = RED if event["type"] == "devil_shop" else WHITE
+            if event["type"] == "devil_shop":
+                name_color = RED
+            elif event["type"] == "armory":
+                name_color = BLUE
+            else:
+                name_color = WHITE
             name = _ensure_fonts()['medium'].render(name_text, True, name_color)
             name_x = x + (card_width - name.get_width()) // 2
             screen.blit(name, (name_x, card_y + 180))
@@ -1155,6 +1165,93 @@ class GameRenderer:
 
         # Кнопка
         next_floor_btn.draw(screen)
+
+    # =========================================================================
+    # === ОРУЖЕЙНЯ ===
+    # =========================================================================
+    @staticmethod
+    def draw_armory(screen, shop_armor: list, inventory_armor: list, gold: int,
+                   buttons: dict, message: str = "", scroll: int = 0,
+                   map_btn: Button = None):
+        """Отрисовка оружейни"""
+        # Затемнение
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        overlay.fill(DARK_BLUE)
+        overlay.set_alpha(230)
+        screen.blit(overlay, (0, 0))
+
+        # Заголовок (синий цвет для оружейни)
+        title = _ensure_fonts()['large'].render("ОРУЖЕЙНЯ", True, BLUE)
+        title_x = (SCREEN_WIDTH - title.get_width()) // 2
+        screen.blit(title, (title_x, 80))
+
+        # Золото
+        IconRenderer.draw_gold_icon(screen, SCREEN_WIDTH // 2 - 15, 130, 25)
+        gold_text = _ensure_fonts()['medium'].render(f"{gold}", True, GOLD)
+        screen.blit(gold_text, (SCREEN_WIDTH // 2 + 20, 130))
+
+        # Броня на продажу
+        buy_title = _ensure_fonts()['small'].render("Купить броню:", True, WHITE)
+        screen.blit(buy_title, (150, 170))
+
+        for i, armor in enumerate(shop_armor):
+            x = 150 + i * 200
+            y = 210
+            armor.draw(screen, x, y, 150)
+            # Цена
+            price_text = _ensure_fonts()['small'].render(f"{armor.price}G", True, GREEN if gold >= armor.price else RED)
+            screen.blit(price_text, (x + 60, y + 155))
+
+        # Инвентарь (продажа)
+        sell_title = _ensure_fonts()['small'].render("Инвентарь (клик для продажи):", True, WHITE)
+        screen.blit(sell_title, (50, 420))
+
+        # Скролл
+        armor_cols = 6
+        armor_start = scroll
+        armor_visible = inventory_armor[armor_start:armor_start + 12]
+
+        small_font = _ensure_fonts()['small']
+
+        for i, armor in enumerate(armor_visible):
+            row = i // armor_cols
+            col = i % armor_cols
+            x = 50 + col * 140
+            y = 460 + row * 200
+
+            armor.draw(screen, x, y, 120)
+
+            # Цена продажи
+            from modules.systems.event_manager import ARMOR_SELL_PRICES
+            sell_price = ARMOR_SELL_PRICES.get(armor.tier, 0)
+            if sell_price > 0:
+                price_color = ORANGE
+            else:
+                price_color = GRAY
+            price_text = small_font.render(f"Прод: {sell_price}G", True, price_color)
+            screen.blit(price_text, (x + 10, y + 125))
+
+        # Скроллбар
+        if len(inventory_armor) > 12:
+            max_scroll = len(inventory_armor) - 12
+            scroll_bar_height = 200
+            scroll_thumb_height = max(30, scroll_bar_height * 12 // len(inventory_armor))
+            scroll_pos = int(scroll * (scroll_bar_height - scroll_thumb_height) / max(max_scroll, 1))
+            pygame.draw.rect(screen, DARK_GRAY, (SCREEN_WIDTH - 30, 460, 15, scroll_bar_height), border_radius=5)
+            pygame.draw.rect(screen, GRAY, (SCREEN_WIDTH - 30, 460 + scroll_pos, 15, scroll_thumb_height), border_radius=5)
+
+        # Кнопка "На карту"
+        if map_btn:
+            map_btn.draw(screen)
+
+        # Кнопка "Обновить"
+        if buttons.get('refresh'):
+            buttons['refresh'].draw(screen)
+
+        # Сообщение
+        if message:
+            msg = _ensure_fonts()['small'].render(message, True, WHITE)
+            screen.blit(msg, (SCREEN_WIDTH // 2 - msg.get_width() // 2, 780))
 
     # =========================================================================
     # === УНИВЕРСАЛЬНЫЙ МЕТОД ОТРИСОВКИ ===
